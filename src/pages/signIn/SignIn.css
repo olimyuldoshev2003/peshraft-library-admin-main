@@ -1,0 +1,23 @@
+.swiper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.swiper-slide {
+  width: 100%;
+  height: 100%;
+}
+
+.slides_block {
+  width: 100%;
+  height: 100%;
+}
+
+.img_slides {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  inset: 0;
+}

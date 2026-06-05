@@ -1,0 +1,21 @@
+.scroll_hidden {
+  overflow: hidden;
+}
+
+.scroll_visible {
+  overflow: unset;
+}
+
+@media only screen and (min-width: 768px) {
+  .scroll_hidden {
+    overflow: unset;
+  }
+}
+
+.scroll_hidden_modal_filter_without_overlay {
+  overflow: hidden;
+}
+
+.scroll_visible_modal_filter_without_overlay {
+  overflow: unset;
+}
