@@ -33,14 +33,62 @@ const Layout = () => {
   }
 
   const navigationItems = [
-    { id: 1, path: "/dashboard", icon: GoHome, label: "Dashboard", exact: true },
-    { id: 2, path: "/dashboard/books", icon: PiBookOpen, label: "Books", exact: false },
-    { id: 3, path: "/dashboard/members", icon: PiUsersThree, label: "Members", exact: false },
-    { id: 4, path: "/dashboard/received-members", icon: SecurityUpdateGoodOutlinedIcon, label: "Received Members", exact: false },
-    { id: 5, path: "/dashboard/receive-book-requests", icon: CallReceivedIcon, label: "Receive Book Requests", exact: false },
-    { id: 6, path: "/dashboard/return-book-requests", icon: PiKeyReturnFill, label: "Return Book Requests", exact: false },
-    { id: 7, path: "/dashboard/notifications", icon: GrNotification, label: "Notification", exact: false },
-    { id: 8, path: "/dashboard/profile", icon: CgProfile, label: "Profile", exact: false },
+    {
+      id: 1,
+      path: "/dashboard",
+      icon: GoHome,
+      label: "Dashboard",
+      exact: true,
+    },
+    {
+      id: 2,
+      path: "/dashboard/books",
+      icon: PiBookOpen,
+      label: "Books",
+      exact: false,
+    },
+    {
+      id: 3,
+      path: "/dashboard/members",
+      icon: PiUsersThree,
+      label: "Members",
+      exact: false,
+    },
+    {
+      id: 4,
+      path: "/dashboard/received-members",
+      icon: SecurityUpdateGoodOutlinedIcon,
+      label: "Received Members",
+      exact: false,
+    },
+    {
+      id: 5,
+      path: "/dashboard/receive-book-requests",
+      icon: CallReceivedIcon,
+      label: "Receive Book Requests",
+      exact: false,
+    },
+    {
+      id: 6,
+      path: "/dashboard/return-book-requests",
+      icon: PiKeyReturnFill,
+      label: "Return Book Requests",
+      exact: false,
+    },
+    {
+      id: 7,
+      path: "/dashboard/notifications",
+      icon: GrNotification,
+      label: "Notification",
+      exact: false,
+    },
+    {
+      id: 8,
+      path: "/dashboard/profile",
+      icon: CgProfile,
+      label: "Profile",
+      exact: false,
+    },
   ];
 
   const isActivePath = (path: string, exact: boolean = false) => {
@@ -56,7 +104,7 @@ const Layout = () => {
       }
     };
 
-    return navigationItems.map((item:any) => (
+    return navigationItems.map((item: any) => (
       <Link
         key={item.id}
         className={`navigations px-3 py-1.5 hover:border-b-3 border-[#D9D9D9] outline-none ${
@@ -103,13 +151,19 @@ const Layout = () => {
             <div className="contact_info_block p-5 flex flex-col gap-2">
               <div className="number_phone_block flex items-center gap-3">
                 <FaPhoneAlt size={19} className="text-white" />
-                <Link className="outline-none text-white text-[15px] font-500" to={"tel:+992446101144"}>
+                <Link
+                  className="outline-none text-white text-[15px] font-500"
+                  to={"tel:+992446101144"}
+                >
                   (+992) 44 610 1144
                 </Link>
               </div>
               <div className="email_block flex items-center gap-3">
                 <MdOutlineEmail size={22} className="text-white" />
-                <Link className="outline-none text-white text-[15px] font-500" to={"mailto:peshraftlibrary@gmail.com"}>
+                <Link
+                  className="outline-none text-white text-[15px] font-500"
+                  to={"mailto:peshraftlibrary@gmail.com"}
+                >
                   peshraftlibrary@gmail.com
                 </Link>
               </div>
@@ -118,16 +172,24 @@ const Layout = () => {
         </header>
 
         {/* Mobile top bar */}
-        <div className={`block_mobile_size_btn_and_name_of_admin_side md:hidden p-1 flex justify-between items-center gap-5 bg-[#2262C6] sticky top-0 z-10`}>
+        <div
+          className={`block_mobile_size_btn_and_name_of_admin_side md:hidden p-1 flex justify-between items-center gap-5 bg-[#2262C6] sticky top-0 z-10`}
+        >
           <div className="logo_block flex items-center">
             <img className="w-14 h-14" src={logo} alt="" />
-            <Link to={"/dashboard"} className="text-[#FFFFFF] text-[20px] font-400 outline-none">
+            <Link
+              to={"/dashboard"}
+              className="text-[#FFFFFF] text-[20px] font-400 outline-none"
+            >
               Peshraft Library
             </Link>
           </div>
           <button
             className="text-white p-2 transition-colors outline-none hover:cursor-pointer"
-            onClick={() => { setMenuMobileSize(true); removeScrollbar(); }}
+            onClick={() => {
+              setMenuMobileSize(true);
+              removeScrollbar();
+            }}
             aria-label="Open menu"
           >
             <IoMenu size={44} />
@@ -137,9 +199,14 @@ const Layout = () => {
         {/* Overlay */}
         <div
           className={`md:hidden fixed inset-0 opacity-50 z-45 transition-all ${
-            menuMobileSize ? "pointer-events-auto bg-black" : "pointer-events-none bg-none"
+            menuMobileSize
+              ? "pointer-events-auto bg-black"
+              : "pointer-events-none bg-none"
           }`}
-          onClick={() => { setMenuMobileSize(false); showScrollbar(); }}
+          onClick={() => {
+            setMenuMobileSize(false);
+            showScrollbar();
+          }}
         />
 
         {/* Mobile Header */}
@@ -152,7 +219,10 @@ const Layout = () => {
             <div className="logo_block flex items-center">
               <img className="w-14 h-14" src={logo} alt="" />
               <Link
-                onClick={() => { setMenuMobileSize(false); showScrollbar(); }}
+                onClick={() => {
+                  setMenuMobileSize(false);
+                  showScrollbar();
+                }}
                 to={"/dashboard"}
                 className="text-[#FFFFFF] text-[24px] font-400 outline-none"
               >
@@ -172,13 +242,19 @@ const Layout = () => {
             <div className="contact_info_block p-5 flex flex-col gap-2">
               <div className="number_phone_block flex items-center gap-3">
                 <FaPhoneAlt size={19} className="text-white" />
-                <Link className="outline-none text-white text-[15px] font-500" to={"tel:+992446101144"}>
+                <Link
+                  className="outline-none text-white text-[15px] font-500"
+                  to={"tel:+992446101144"}
+                >
                   (+992) 44 610 1144
                 </Link>
               </div>
               <div className="email_block flex items-center gap-3">
                 <MdOutlineEmail size={22} className="text-white" />
-                <Link className="outline-none text-white text-[15px] font-500" to={"mailto:peshraftlibrary@gmail.com"}>
+                <Link
+                  className="outline-none text-white text-[15px] font-500"
+                  to={"mailto:peshraftlibrary@gmail.com"}
+                >
                   peshraftlibrary@gmail.com
                 </Link>
               </div>

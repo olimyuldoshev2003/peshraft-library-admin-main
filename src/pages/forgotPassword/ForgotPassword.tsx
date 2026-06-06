@@ -41,21 +41,31 @@ const ForgotPassword = () => {
         {/* Logo */}
         <div className="flex items-center justify-center gap-2">
           <img src={logoSignIn} alt="Logo" className="w-12 h-12" />
-          <h1 className="text-[#7EC7EC] text-[24px] font-400">Peshraft Library</h1>
+          <h1 className="text-[#7EC7EC] text-[24px] font-400">
+            Peshraft Library
+          </h1>
         </div>
 
         <div className="flex flex-col gap-2">
-          <h1 className="text-[28px] font-600 text-center text-[#100F14]">Forgot Password</h1>
+          <h1 className="text-[28px] font-600 text-center text-[#100F14]">
+            Forgot Password
+          </h1>
           <p className="text-center text-[#9794AA] text-[15px]">
-            Enter your email address and we'll send you a link to reset your password.
+            Enter your email address and we'll send you a link to reset your
+            password.
           </p>
         </div>
 
         {success ? (
           <div className="flex flex-col gap-4 items-center">
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-              <p className="text-green-700 text-[16px] font-500">✅ Reset email sent!</p>
-              <p className="text-green-600 text-[14px] mt-1">Check your inbox at <strong>{email}</strong> and follow the instructions.</p>
+              <p className="text-green-700 text-[16px] font-500">
+                ✅ Reset email sent!
+              </p>
+              <p className="text-green-600 text-[14px] mt-1">
+                Check your inbox at <strong>{email}</strong> and follow the
+                instructions.
+              </p>
             </div>
             <Link to="/" className="text-[#3A65FF] hover:underline text-[16px]">
               Back to Sign In
@@ -64,7 +74,12 @@ const ForgotPassword = () => {
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label htmlFor="email" className="text-[#9794AA] text-[16px] font-500 cursor-pointer">Email</label>
+              <label
+                htmlFor="email"
+                className="text-[#9794AA] text-[16px] font-500 cursor-pointer"
+              >
+                Email
+              </label>
               <TextField
                 id="email"
                 label="Enter your email"
@@ -73,7 +88,10 @@ const ForgotPassword = () => {
                 sx={{ marginTop: 1 }}
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError("");
+                }}
                 error={Boolean(error)}
                 helperText={error}
               />
@@ -89,7 +107,9 @@ const ForgotPassword = () => {
 
             <p className="text-center text-[#8E8E8E] text-[16px]">
               Remember your password?{" "}
-              <Link to="/" className="text-[#3A65FF] hover:underline">Sign In</Link>
+              <Link to="/" className="text-[#3A65FF] hover:underline">
+                Sign In
+              </Link>
             </p>
           </form>
         )}

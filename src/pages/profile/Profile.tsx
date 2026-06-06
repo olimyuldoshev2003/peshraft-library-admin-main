@@ -24,7 +24,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import noImg from "../../assets/no-img.jpg";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import {
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 import { auth } from "../../firebase/config";
 import {
   updateAdminProfile,
@@ -71,10 +75,14 @@ const Profile = () => {
   useEffect(() => {
     if (adminProfile) {
       setFullName(adminProfile.fullName || adminProfile.name || "");
-      setDateOfBirth(adminProfile.dateOfBirth || adminProfile.date_of_birth || "");
+      setDateOfBirth(
+        adminProfile.dateOfBirth || adminProfile.date_of_birth || "",
+      );
       setPhoneNumber(adminProfile.phoneNumber || adminProfile.phone || "");
       setEmail(adminProfile.email || "");
-      setImgPreview(adminProfile.image_url || adminProfile.admin_image_url || null);
+      setImgPreview(
+        adminProfile.image_url || adminProfile.admin_image_url || null,
+      );
     }
     // Only main admin sees pending admins
     if (adminProfile?.role === "admin" || adminProfile?.is_main_admin) {
@@ -113,7 +121,7 @@ const Profile = () => {
       await updateAdminProfile(
         currentUser.uid,
         { fullName, dateOfBirth, phoneNumber, email },
-        imgFile || undefined
+        imgFile || undefined,
       );
       await refreshProfile();
       setProfileSuccess("Profile updated successfully!");
@@ -155,9 +163,15 @@ const Profile = () => {
       setOldPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
-      setTimeout(() => { setPasswordSuccess(""); setModalChangePassword(false); }, 2000);
+      setTimeout(() => {
+        setPasswordSuccess("");
+        setModalChangePassword(false);
+      }, 2000);
     } catch (err: any) {
-      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+      if (
+        err.code === "auth/wrong-password" ||
+        err.code === "auth/invalid-credential"
+      ) {
         setPasswordError("Old password is incorrect");
       } else {
         setPasswordError("Failed to change password. Try again.");
@@ -184,30 +198,59 @@ const Profile = () => {
     return 0;
   }
 
-  function getComparator<Key extends keyof any>(order: Order, orderBy: Key): (a: any, b: any) => number {
+  function getComparator<Key extends keyof any>(
+    order: Order,
+    orderBy: Key,
+  ): (a: any, b: any) => number {
     return order === "desc"
       ? (a, b) => descendingComparator(a, b, orderBy)
       : (a, b) => -descendingComparator(a, b, orderBy);
   }
 
   const headCells: any = [
-    { id: "fullName", numeric: false, disablePadding: false, label: "Full Name" },
+    {
+      id: "fullName",
+      numeric: false,
+      disablePadding: false,
+      label: "Full Name",
+    },
     { id: "dateOfBirth", numeric: false, disablePadding: false, label: "Age" },
-    { id: "phoneNumber", numeric: false, disablePadding: false, label: "Phone number" },
+    {
+      id: "phoneNumber",
+      numeric: false,
+      disablePadding: false,
+      label: "Phone number",
+    },
     { id: "email", numeric: false, disablePadding: false, label: "Email" },
     { id: "action", numeric: false, disablePadding: false, label: "Action" },
   ];
 
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
-    const createSortHandler = (property: any) => (event: React.MouseEvent<unknown>) => onRequestSort(event, property);
+    const createSortHandler =
+      (property: any) => (event: React.MouseEvent<unknown>) =>
+        onRequestSort(event, property);
     return (
       <TableHead>
         <TableRow>
           {headCells.map((headCell: any) => (
-            <TableCell key={headCell.id} padding={headCell.disablePadding ? "none" : "normal"} sortDirection={orderBy === headCell.id ? order : false}>
-              <TableSortLabel active={orderBy === headCell.id} direction={orderBy === headCell.id ? order : "asc"} onClick={createSortHandler(headCell.id)}>
+            <TableCell
+              key={headCell.id}
+              padding={headCell.disablePadding ? "none" : "normal"}
+              sortDirection={orderBy === headCell.id ? order : false}
+            >
+              <TableSortLabel
+                active={orderBy === headCell.id}
+                direction={orderBy === headCell.id ? order : "asc"}
+                onClick={createSortHandler(headCell.id)}
+              >
                 {headCell.label}
-                {orderBy === headCell.id ? <Box component="span" sx={visuallyHidden}>{order === "desc" ? "sorted descending" : "sorted ascending"}</Box> : null}
+                {orderBy === headCell.id ? (
+                  <Box component="span" sx={visuallyHidden}>
+                    {order === "desc"
+                      ? "sorted descending"
+                      : "sorted ascending"}
+                  </Box>
+                ) : null}
               </TableSortLabel>
             </TableCell>
           ))}
@@ -218,8 +261,27 @@ const Profile = () => {
 
   function EnhancedTableToolbar({ numSelected }: any) {
     return (
-      <Toolbar sx={{ pl: { sm: 2 }, pr: { xs: 1, sm: 1 }, ...(numSelected > 0 && { bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.action.activatedOpacity) }) }}>
-        <Typography sx={{ flex: "1 1 100%" }} variant="h6" id="tableTitle" component="div">Requested Admin Members</Typography>
+      <Toolbar
+        sx={{
+          pl: { sm: 2 },
+          pr: { xs: 1, sm: 1 },
+          ...(numSelected > 0 && {
+            bgcolor: (theme) =>
+              alpha(
+                theme.palette.primary.main,
+                theme.palette.action.activatedOpacity,
+              ),
+          }),
+        }}
+      >
+        <Typography
+          sx={{ flex: "1 1 100%" }}
+          variant="h6"
+          id="tableTitle"
+          component="div"
+        >
+          Requested Admin Members
+        </Typography>
       </Toolbar>
     );
   }
@@ -231,27 +293,35 @@ const Profile = () => {
   };
 
   const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) { setSelected(pendingAdmins.map((n: any) => n.id)); return; }
+    if (event.target.checked) {
+      setSelected(pendingAdmins.map((n: any) => n.id));
+      return;
+    }
     setSelected([]);
   };
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - pendingAdmins.length) : 0;
+  const emptyRows =
+    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - pendingAdmins.length) : 0;
   const visibleRows = useMemo(
-    () => [...pendingAdmins].sort(getComparator(order, orderBy)).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [pendingAdmins, order, orderBy, page, rowsPerPage]
+    () =>
+      [...pendingAdmins]
+        .sort(getComparator(order, orderBy))
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [pendingAdmins, order, orderBy, page, rowsPerPage],
   );
 
   return (
     <>
       <div className="profile_component">
         <div className="profile_component_block p-5 max-w-360 mx-auto">
-
           {/* Language Section */}
           <div className="header_profile_component flex flex-col gap-2">
             <h1 className="text-[24px] font-600">Language</h1>
@@ -259,7 +329,9 @@ const Profile = () => {
               <FormControl fullWidth>
                 <InputLabel>Language</InputLabel>
                 <Select label="Language" value="" onChange={() => {}}>
-                  <MenuItem value={""} sx={{ color: "gray" }} disabled>Language</MenuItem>
+                  <MenuItem value={""} sx={{ color: "gray" }} disabled>
+                    Language
+                  </MenuItem>
                   <MenuItem value={"en"}>English</MenuItem>
                   <MenuItem value={"ru"}>Russian</MenuItem>
                   <MenuItem value={"tj"}>Tajik</MenuItem>
@@ -281,10 +353,15 @@ const Profile = () => {
                     className="w-38 h-38 shadow-2xl object-cover rounded-full"
                     src={imgPreview || noImg}
                     alt=""
-                    onError={(e: any) => { e.target.src = noImg; }}
+                    onError={(e: any) => {
+                      e.target.src = noImg;
+                    }}
                   />
                   <div className="label_and_input_user_profile_img flex flex-col gap-1">
-                    <label htmlFor="user_profile_img" className="text-[15px] text-[gray] cursor-pointer">
+                    <label
+                      htmlFor="user_profile_img"
+                      className="text-[15px] text-[gray] cursor-pointer"
+                    >
                       Profile image
                     </label>
                     <input
@@ -300,25 +377,83 @@ const Profile = () => {
 
               <div className="labels_and_inputs_edit_profile grid sm:grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label htmlFor="fullname" className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer">Full Name</label>
-                  <TextField id="fullname" label="Enter your full name" variant="outlined" fullWidth sx={{ marginTop: 1 }} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  <label
+                    htmlFor="fullname"
+                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
+                  >
+                    Full Name
+                  </label>
+                  <TextField
+                    id="fullname"
+                    label="Enter your full name"
+                    variant="outlined"
+                    fullWidth
+                    sx={{ marginTop: 1 }}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <label htmlFor="dateOfBirth" className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer">Date of Birth</label>
-                  <TextField id="dateOfBirth" label="Date of Birth" variant="outlined" fullWidth sx={{ marginTop: 1 }} type="date" InputLabelProps={{ shrink: true }} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+                  <label
+                    htmlFor="dateOfBirth"
+                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
+                  >
+                    Date of Birth
+                  </label>
+                  <TextField
+                    id="dateOfBirth"
+                    label="Date of Birth"
+                    variant="outlined"
+                    fullWidth
+                    sx={{ marginTop: 1 }}
+                    type="date"
+                    InputLabelProps={{ shrink: true }}
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <label htmlFor="phoneNumber" className="label_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer">Phone Number</label>
-                  <TextField id="phoneNumber" label="Enter your phone number" variant="outlined" fullWidth sx={{ marginTop: 1 }} type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
+                  <label
+                    htmlFor="phoneNumber"
+                    className="label_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer"
+                  >
+                    Phone Number
+                  </label>
+                  <TextField
+                    id="phoneNumber"
+                    label="Enter your phone number"
+                    variant="outlined"
+                    fullWidth
+                    sx={{ marginTop: 1 }}
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
                 </div>
                 <div>
-                  <label htmlFor="email" className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer">Email</label>
-                  <TextField id="email" label="Enter your email" variant="outlined" fullWidth sx={{ marginTop: 1 }} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <label
+                    htmlFor="email"
+                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
+                  >
+                    Email
+                  </label>
+                  <TextField
+                    id="email"
+                    label="Enter your email"
+                    variant="outlined"
+                    fullWidth
+                    sx={{ marginTop: 1 }}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="block_btn_submit flex flex-col gap-2">
-                {profileSuccess && <p className="text-green-500 text-sm">{profileSuccess}</p>}
+                {profileSuccess && (
+                  <p className="text-green-500 text-sm">{profileSuccess}</p>
+                )}
                 <button
                   type="submit"
                   disabled={profileLoading}
@@ -345,7 +480,9 @@ const Profile = () => {
           <div className="footer_profile_component mt-6">
             <h1 className="text-[24px] font-600">Admins</h1>
             {adminsLoading ? (
-              <div className="flex justify-center py-6"><CircularProgress /></div>
+              <div className="flex justify-center py-6">
+                <CircularProgress />
+              </div>
             ) : (
               <Paper sx={{ width: "100%", paddingLeft: 3, paddingRight: 3 }}>
                 <EnhancedTableToolbar numSelected={selected.length} />
@@ -363,15 +500,29 @@ const Profile = () => {
                       {visibleRows.map((row, index) => {
                         const labelId = `enhanced-table-checkbox-${index}`;
                         return (
-                          <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
-                            <TableCell component="th" id={labelId} scope="row">{row.fullName || row.name || "-"}</TableCell>
-                            <TableCell>{row.dateOfBirth || row.date_of_birth || "-"}</TableCell>
-                            <TableCell>{row.phoneNumber || row.phone || "-"}</TableCell>
+                          <TableRow
+                            hover
+                            role="checkbox"
+                            tabIndex={-1}
+                            key={row.id}
+                          >
+                            <TableCell component="th" id={labelId} scope="row">
+                              {row.fullName || row.name || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {row.dateOfBirth || row.date_of_birth || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {row.phoneNumber || row.phone || "-"}
+                            </TableCell>
                             <TableCell>{row.email || "-"}</TableCell>
                             <TableCell>
                               <button
                                 className="bg-[green] px-2.5 py-1.5 rounded-[5px] text-white text-[14px] font-500 cursor-pointer outline-none"
-                                onClick={() => { setSelectedAdminId(row.id); setModalAccept(true); }}
+                                onClick={() => {
+                                  setSelectedAdminId(row.id);
+                                  setModalAccept(true);
+                                }}
                               >
                                 Accept
                               </button>
@@ -381,12 +532,20 @@ const Profile = () => {
                       })}
                       {pendingAdmins.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ py: 4, color: "gray" }}>
+                          <TableCell
+                            colSpan={5}
+                            align="center"
+                            sx={{ py: 4, color: "gray" }}
+                          >
                             No pending admin requests
                           </TableCell>
                         </TableRow>
                       )}
-                      {emptyRows > 0 && <TableRow><TableCell colSpan={5} /></TableRow>}
+                      {emptyRows > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} />
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -404,39 +563,89 @@ const Profile = () => {
           </div>
 
           {/* Modal: Accept Admin */}
-          <Dialog open={modalAccept} onClose={() => setModalAccept(false)} fullWidth>
+          <Dialog
+            open={modalAccept}
+            onClose={() => setModalAccept(false)}
+            fullWidth
+          >
             <div className="modal_delete_book_block px-4 py-4">
               <div className="header_delete_book_block flex items-center gap-6 justify-between">
-                <h1 className="text-[17px] font-600">Request of becoming admin</h1>
-                <button className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full" onClick={() => setModalAccept(false)}>
+                <h1 className="text-[17px] font-600">
+                  Request of becoming admin
+                </h1>
+                <button
+                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  onClick={() => setModalAccept(false)}
+                >
                   <MdOutlineClose size={27} />
                 </button>
               </div>
               <DialogTitle sx={{ fontSize: 15 }}>
-                {"Is this person really a user of the admin side of Peshraft Library?"}
+                {
+                  "Is this person really a user of the admin side of Peshraft Library?"
+                }
               </DialogTitle>
               <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
-                <button className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300" onClick={() => setModalAccept(false)}>No</button>
-                <button className="bg-[green] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300" onClick={handleApproveAdmin}>Yes</button>
+                <button
+                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  onClick={() => setModalAccept(false)}
+                >
+                  No
+                </button>
+                <button
+                  className="bg-[green] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  onClick={handleApproveAdmin}
+                >
+                  Yes
+                </button>
               </div>
             </div>
           </Dialog>
 
           {/* Modal: Change Password */}
-          <Dialog open={modalChangePassword} onClose={() => setModalChangePassword(false)} fullWidth>
+          <Dialog
+            open={modalChangePassword}
+            onClose={() => setModalChangePassword(false)}
+            fullWidth
+          >
             <div className="px-4 py-4">
               <div className="flex items-center gap-6 justify-between mb-4">
                 <h1 className="text-[22px] font-600">Change Password</h1>
-                <button className="outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full" onClick={() => setModalChangePassword(false)}>
+                <button
+                  className="outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  onClick={() => setModalChangePassword(false)}
+                >
                   <MdOutlineClose size={27} />
                 </button>
               </div>
               <div className="flex flex-col gap-4">
-                <TextField label="Old Password" type="password" fullWidth value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} />
-                <TextField label="New Password" type="password" fullWidth value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                <TextField label="Confirm New Password" type="password" fullWidth value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} />
-                {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
-                {passwordSuccess && <p className="text-green-500 text-sm">{passwordSuccess}</p>}
+                <TextField
+                  label="Old Password"
+                  type="password"
+                  fullWidth
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                />
+                <TextField
+                  label="New Password"
+                  type="password"
+                  fullWidth
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+                <TextField
+                  label="Confirm New Password"
+                  type="password"
+                  fullWidth
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                />
+                {passwordError && (
+                  <p className="text-red-500 text-sm">{passwordError}</p>
+                )}
+                {passwordSuccess && (
+                  <p className="text-green-500 text-sm">{passwordSuccess}</p>
+                )}
                 <button
                   onClick={handleChangePassword}
                   disabled={passwordLoading}
@@ -447,7 +656,6 @@ const Profile = () => {
               </div>
             </div>
           </Dialog>
-
         </div>
       </div>
     </>

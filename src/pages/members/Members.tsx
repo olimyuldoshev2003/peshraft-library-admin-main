@@ -23,7 +23,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { useAuth } from "../../context/AuthContext";
 
 // 🔥 Firebase
-import { getMembers, getMemberBookshelf, getMemberHistory } from "../../firebase/services";
+import {
+  getMembers,
+  getMemberBookshelf,
+  getMemberHistory,
+} from "../../firebase/services";
 
 type Order = "asc" | "desc";
 
@@ -34,7 +38,8 @@ const Members = () => {
   const [selected, setSelected] = useState<readonly number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(17);
-  const [modalInfoAboutMember, setModalInfoAboutMember] = useState<boolean>(false);
+  const [modalInfoAboutMember, setModalInfoAboutMember] =
+    useState<boolean>(false);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -79,7 +84,7 @@ const Members = () => {
       (m) =>
         m.fullName?.toLowerCase().includes(lower) ||
         m.email?.toLowerCase().includes(lower) ||
-        m.phoneNumber?.toLowerCase().includes(lower)
+        m.phoneNumber?.toLowerCase().includes(lower),
     );
   }, [members, searchValue]);
 
@@ -89,7 +94,10 @@ const Members = () => {
     return 0;
   }
 
-  function getComparator<Key extends keyof any>(order: Order, orderBy: Key): (a: any, b: any) => number {
+  function getComparator<Key extends keyof any>(
+    order: Order,
+    orderBy: Key,
+  ): (a: any, b: any) => number {
     return order === "desc"
       ? (a, b) => descendingComparator(a, b, orderBy)
       : (a, b) => -descendingComparator(a, b, orderBy);
@@ -97,27 +105,58 @@ const Members = () => {
 
   const headCells: any = [
     { id: "img", numeric: false, disablePadding: true, label: "Image" },
-    { id: "fullName", numeric: false, disablePadding: true, label: "Full Name" },
-    { id: "dateOfBirth", numeric: false, disablePadding: false, label: "Date of Birth" },
-    { id: "phoneNumber", numeric: false, disablePadding: false, label: "Phone Number" },
-    { id: "email", numeric: false, disablePadding: false, label: "Email Address" },
+    {
+      id: "fullName",
+      numeric: false,
+      disablePadding: true,
+      label: "Full Name",
+    },
+    {
+      id: "dateOfBirth",
+      numeric: false,
+      disablePadding: false,
+      label: "Date of Birth",
+    },
+    {
+      id: "phoneNumber",
+      numeric: false,
+      disablePadding: false,
+      label: "Phone Number",
+    },
+    {
+      id: "email",
+      numeric: false,
+      disablePadding: false,
+      label: "Email Address",
+    },
     { id: "action", numeric: false, disablePadding: false, label: "Action" },
   ];
 
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
-    const createSortHandler = (property: any) => (event: React.MouseEvent<unknown>) => {
-      onRequestSort(event, property);
-    };
+    const createSortHandler =
+      (property: any) => (event: React.MouseEvent<unknown>) => {
+        onRequestSort(event, property);
+      };
     return (
       <TableHead>
         <TableRow>
           {headCells.map((headCell: any) => (
-            <TableCell key={headCell.id} padding={headCell.disablePadding ? "none" : "normal"} sortDirection={orderBy === headCell.id ? order : false}>
-              <TableSortLabel active={orderBy === headCell.id} direction={orderBy === headCell.id ? order : "asc"} onClick={createSortHandler(headCell.id)}>
+            <TableCell
+              key={headCell.id}
+              padding={headCell.disablePadding ? "none" : "normal"}
+              sortDirection={orderBy === headCell.id ? order : false}
+            >
+              <TableSortLabel
+                active={orderBy === headCell.id}
+                direction={orderBy === headCell.id ? order : "asc"}
+                onClick={createSortHandler(headCell.id)}
+              >
                 {headCell.label}
                 {orderBy === headCell.id ? (
                   <Box component="span" sx={visuallyHidden}>
-                    {order === "desc" ? "sorted descending" : "sorted ascending"}
+                    {order === "desc"
+                      ? "sorted descending"
+                      : "sorted ascending"}
                   </Box>
                 ) : null}
               </TableSortLabel>
@@ -130,8 +169,25 @@ const Members = () => {
 
   function EnhancedTableToolbar({ numSelected }: any) {
     return (
-      <Toolbar sx={{ pl: { sm: 2 }, pr: { xs: 1, sm: 1 }, ...(numSelected > 0 && { bgcolor: (theme) => alpha(theme.palette.primary.main, theme.palette.action.activatedOpacity) }) }}>
-        <Typography sx={{ flex: "1 1 100%" }} variant="h6" id="tableTitle" component="div">
+      <Toolbar
+        sx={{
+          pl: { sm: 2 },
+          pr: { xs: 1, sm: 1 },
+          ...(numSelected > 0 && {
+            bgcolor: (theme) =>
+              alpha(
+                theme.palette.primary.main,
+                theme.palette.action.activatedOpacity,
+              ),
+          }),
+        }}
+      >
+        <Typography
+          sx={{ flex: "1 1 100%" }}
+          variant="h6"
+          id="tableTitle"
+          component="div"
+        >
           Members
         </Typography>
       </Toolbar>
@@ -153,16 +209,24 @@ const Members = () => {
   };
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - filteredMembers.length) : 0;
+  const emptyRows =
+    page > 0
+      ? Math.max(0, (1 + page) * rowsPerPage - filteredMembers.length)
+      : 0;
 
   const visibleRows = useMemo(
-    () => [...filteredMembers].sort(getComparator(order, orderBy)).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [filteredMembers, order, orderBy, page, rowsPerPage]
+    () =>
+      [...filteredMembers]
+        .sort(getComparator(order, orderBy))
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredMembers, order, orderBy, page, rowsPerPage],
   );
 
   return (
@@ -182,8 +246,12 @@ const Members = () => {
             </div>
             <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
               <div className="fullname_of_user_and_admin_title">
-                <h1 className="text-[22px] font-500">{adminProfile?.fullName || "Admin"}</h1>
-                <h1 className="text-[#808080] text-[15px] font-400 text-right">Admin</h1>
+                <h1 className="text-[22px] font-500">
+                  {adminProfile?.fullName || "Admin"}
+                </h1>
+                <h1 className="text-[#808080] text-[15px] font-400 text-right">
+                  Admin
+                </h1>
               </div>
               <img className="w-14 h-14" src={userImg} alt="" />
             </div>
@@ -191,7 +259,9 @@ const Members = () => {
 
           <div className="section_member_component mt-6">
             {loading ? (
-              <div className="flex justify-center py-10"><CircularProgress /></div>
+              <div className="flex justify-center py-10">
+                <CircularProgress />
+              </div>
             ) : (
               <Paper sx={{ width: "100%", paddingLeft: 3, paddingRight: 3 }}>
                 <EnhancedTableToolbar numSelected={selected.length} />
@@ -209,20 +279,40 @@ const Members = () => {
                       {visibleRows.map((row, index) => {
                         const labelId = `enhanced-table-checkbox-${index}`;
                         return (
-                          <TableRow hover role="checkbox" tabIndex={-1} key={row.id}>
+                          <TableRow
+                            hover
+                            role="checkbox"
+                            tabIndex={-1}
+                            key={row.id}
+                          >
                             <TableCell>
                               <img
-                                src={row.member_image_url || row.photoURL || userImg}
-                                className="w-10 h-10 rounded-full object-cover"
+                                src={
+                                  row.member_image_url ||
+                                  row.photoURL ||
+                                  userImg
+                                }
+                                className="min-w-10 h-10 rounded-full object-cover"
                                 alt=""
-                                onError={(e: any) => { e.target.src = userImg; }}
+                                onError={(e: any) => {
+                                  e.target.src = userImg;
+                                }}
                               />
                             </TableCell>
-                            <TableCell component="th" id={labelId} scope="row" padding="none">
+                            <TableCell
+                              component="th"
+                              id={labelId}
+                              scope="row"
+                              padding="none"
+                            >
                               {row.fullName || row.name || "-"}
                             </TableCell>
-                            <TableCell>{row.dateOfBirth || row.date_of_birth || "-"}</TableCell>
-                            <TableCell>{row.phoneNumber || row.phone || "-"}</TableCell>
+                            <TableCell>
+                              {row.dateOfBirth || row.date_of_birth || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {row.phoneNumber || row.phone || "-"}
+                            </TableCell>
                             <TableCell>{row.email || "-"}</TableCell>
                             <TableCell>
                               <BsThreeDots
@@ -236,12 +326,20 @@ const Members = () => {
                       })}
                       {filteredMembers.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={6} align="center" sx={{ py: 4, color: "gray" }}>
+                          <TableCell
+                            colSpan={6}
+                            align="center"
+                            sx={{ py: 4, color: "gray" }}
+                          >
                             No members found
                           </TableCell>
                         </TableRow>
                       )}
-                      {emptyRows > 0 && <TableRow><TableCell colSpan={6} /></TableRow>}
+                      {emptyRows > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} />
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -267,46 +365,101 @@ const Members = () => {
               <div className="modal_info_about_member_block sm:p-4 md:p-2.5 flex items-center gap-5 min-w-0 flex-wrap">
                 <div className="info_about_member shrink-0 flex flex-col sm:justify-center md:justify-start sm:w-full md:w-[45%]">
                   <div className="btn_close_block">
-                    <IoArrowBackCircleOutline size={25} className="cursor-pointer" onClick={() => setModalInfoAboutMember(false)} />
+                    <IoArrowBackCircleOutline
+                      size={25}
+                      className="cursor-pointer"
+                      onClick={() => setModalInfoAboutMember(false)}
+                    />
                   </div>
                   <div className="info_about_member flex flex-col sm:justify-center md:justify-start sm:items-center md:items-start">
                     <img
-                      src={selectedMember?.member_image_url || selectedMember?.photoURL || userImg}
+                      src={
+                        selectedMember?.member_image_url ||
+                        selectedMember?.photoURL ||
+                        userImg
+                      }
                       className="w-58.5 h-68.5 rounded-xl object-cover"
                       alt=""
-                      onError={(e: any) => { e.target.src = userImg; }}
+                      onError={(e: any) => {
+                        e.target.src = userImg;
+                      }}
                     />
                     <div className="info_text_block">
-                      <h1 className="info_text_title text-[22px] font-500">Bio Info</h1>
-                      <h1 className="text-[#6E6E6E] text-[17px] font-500">Full Name: <span className="text-black font-400">{selectedMember?.fullName || selectedMember?.name || "-"}</span></h1>
-                      <h1 className="text-[#6E6E6E] text-[17px] font-500">Birth Date: <span className="text-black font-400">{selectedMember?.dateOfBirth || selectedMember?.date_of_birth || "-"}</span></h1>
-                      <h1 className="text-[#6E6E6E] text-[17px] font-500">Phone: <span className="text-black font-400">{selectedMember?.phoneNumber || selectedMember?.phone || "-"}</span></h1>
-                      <h1 className="text-[#6E6E6E] text-[17px] font-500">Email: <span className="text-black font-400">{selectedMember?.email || "-"}</span></h1>
+                      <h1 className="info_text_title text-[22px] font-500">
+                        Bio Info
+                      </h1>
+                      <h1 className="text-[#6E6E6E] text-[17px] font-500">
+                        Full Name:{" "}
+                        <span className="text-black font-400">
+                          {selectedMember?.fullName ||
+                            selectedMember?.name ||
+                            "-"}
+                        </span>
+                      </h1>
+                      <h1 className="text-[#6E6E6E] text-[17px] font-500">
+                        Birth Date:{" "}
+                        <span className="text-black font-400">
+                          {selectedMember?.dateOfBirth ||
+                            selectedMember?.date_of_birth ||
+                            "-"}
+                        </span>
+                      </h1>
+                      <h1 className="text-[#6E6E6E] text-[17px] font-500">
+                        Phone:{" "}
+                        <span className="text-black font-400">
+                          {selectedMember?.phoneNumber ||
+                            selectedMember?.phone ||
+                            "-"}
+                        </span>
+                      </h1>
+                      <h1 className="text-[#6E6E6E] text-[17px] font-500">
+                        Email:{" "}
+                        <span className="text-black font-400">
+                          {selectedMember?.email || "-"}
+                        </span>
+                      </h1>
                     </div>
                   </div>
                 </div>
                 <div className="info_bookshelf_and_history_book_block flex flex-col gap-3 flex-1 min-w-0">
                   <div className="info_about_bookshelf_of_member">
-                    <h1 className="bookshelf_title text-[25px] font-500 border-b-3">Bookshelf</h1>
+                    <h1 className="bookshelf_title text-[25px] font-500 border-b-3">
+                      Bookshelf
+                    </h1>
                     <div className="bookshelf_block p-3 h-47 overflow-auto flex flex-col gap-3 border-b-2 border-b-[#D9D9D9] w-full">
                       {bookshelf.length === 0 ? (
-                        <p className="text-gray-400 text-center py-4">No books currently borrowed</p>
+                        <p className="text-gray-400 text-center py-4">
+                          No books currently borrowed
+                        </p>
                       ) : (
                         bookshelf.map((book: any) => (
-                          <div key={book.id} className="boolshelf_container flex justify-between items-center gap-3">
+                          <div
+                            key={book.id}
+                            className="boolshelf_container flex justify-between items-center gap-3"
+                          >
                             <div className="img_book_name_and_author_name_block flex items-center gap-3">
                               <div className="block_img bg-[#F5EABD] p-2 rounded-[5px]">
-                                <img src={book.image_url || userImg} alt="" className="w-10.75 h-15 object-cover" />
+                                <img
+                                  src={book.image_url || userImg}
+                                  alt=""
+                                  className="w-10.75 h-15 object-cover"
+                                />
                               </div>
                               <div className="name_and_author_of_book">
-                                <h1 className="name_of_book text-[20px] font-500">{book.bookTitle || book.title}</h1>
-                                <p className="author_of_book text-[#515151] text-[14px] font-400">{book.author}</p>
+                                <h1 className="name_of_book text-[20px] font-500">
+                                  {book.bookTitle || book.title}
+                                </h1>
+                                <p className="author_of_book text-[#515151] text-[14px] font-400">
+                                  {book.author}
+                                </p>
                               </div>
                             </div>
                             <div className="icon_and_days_left">
                               <h1 className="flex items-center text-[#FF383C] gap-1.5">
                                 <LuOctagonAlert size={18} />
-                                <span className="text-[12px] font-600">{book.dueDate || "-"}</span>
+                                <span className="text-[12px] font-600">
+                                  {book.dueDate || "-"}
+                                </span>
                               </h1>
                             </div>
                           </div>
@@ -315,19 +468,34 @@ const Members = () => {
                     </div>
                   </div>
                   <div className="info_about_history_book_of_member">
-                    <h1 className="history_book_title text-[25px] font-500 border-b-3">History Book</h1>
+                    <h1 className="history_book_title text-[25px] font-500 border-b-3">
+                      History Book
+                    </h1>
                     <div className="history_book_block p-3 h-47 overflow-auto flex flex-col gap-3 border-b-2 border-b-[#D9D9D9]">
                       {history.length === 0 ? (
-                        <p className="text-gray-400 text-center py-4">No history yet</p>
+                        <p className="text-gray-400 text-center py-4">
+                          No history yet
+                        </p>
                       ) : (
                         history.map((book: any) => (
-                          <div key={book.id} className="hisory_book_container flex items-center gap-3">
+                          <div
+                            key={book.id}
+                            className="hisory_book_container flex items-center gap-3"
+                          >
                             <div className="block_img bg-[#F5EABD] p-2 rounded-[5px]">
-                              <img src={book.image_url || userImg} alt="" className="w-10.75 h-15 object-cover" />
+                              <img
+                                src={book.image_url || userImg}
+                                alt=""
+                                className="w-10.75 h-15 object-cover"
+                              />
                             </div>
                             <div className="name_and_author_of_book">
-                              <h1 className="name_of_book text-[20px] font-500">{book.bookTitle || book.title}</h1>
-                              <p className="author_of_book text-[#515151] text-[14px] font-400">{book.author}</p>
+                              <h1 className="name_of_book text-[20px] font-500">
+                                {book.bookTitle || book.title}
+                              </h1>
+                              <p className="author_of_book text-[#515151] text-[14px] font-400">
+                                {book.author}
+                              </p>
                             </div>
                           </div>
                         ))
