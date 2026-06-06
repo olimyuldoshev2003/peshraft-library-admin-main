@@ -39,6 +39,7 @@ import {
   deleteBook,
 } from "../../firebase/services";
 import { useAuth } from "../../context/AuthContext";
+import DialogActions from "@mui/material/DialogActions";
 
 type Order = "asc" | "desc";
 
@@ -52,7 +53,8 @@ const Books = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(17);
   const [modalFilter, setModalFilter] = useState(false);
-  const [, setModalShowAllFilters] = useState(false);
+  const [modalShowAllFilters, setModalShowAllFilters] =
+    useState<boolean>(false);
   const [modalFilterOptions, setModalFilterOptions] = useState(false);
   const [modalDeleteBook, setModalDeleteBook] = useState(false);
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
@@ -288,6 +290,20 @@ const Books = () => {
     [order, orderBy, page, rowsPerPage, books],
   );
 
+  function removeScrollbar() {
+    document.body.classList.add("scroll_hidden_modal_filter_without_overlay");
+    document.body.classList.remove(
+      "scroll_visible_modal_filter_without_overlay",
+    );
+  }
+
+  function showScrollbar() {
+    document.body.classList.add("scroll_visible_modal_filter_without_overlay");
+    document.body.classList.remove(
+      "scroll_hidden_modal_filter_without_overlay",
+    );
+  }
+
   async function loadBooks() {
     setLoadingBooks(true);
     try {
@@ -478,7 +494,10 @@ const Books = () => {
             <div className="btn_filter_and_modal_filter_overlay_transparent_block md:relative flex flex-col">
               <button
                 className="icons_filter_block shadow-[0_0_6px_gray] flex justify-center items-center p-2 rounded-[10px] cursor-pointer"
-                onClick={() => setModalFilter(true)}
+                onClick={() => {
+                  setModalFilter(true);
+                  removeScrollbar();
+                }}
               >
                 <TuneIcon sx={{ fontSize: "26px" }} />
               </button>
@@ -494,7 +513,10 @@ const Books = () => {
                   <IoClose
                     size={31}
                     style={{ cursor: "pointer" }}
-                    onClick={() => setModalFilter(false)}
+                    onClick={() => {
+                      setModalFilter(false);
+                      showScrollbar();
+                    }}
                   />
                 </div>
                 <div className="section_modal_filter">
@@ -558,10 +580,72 @@ const Books = () => {
                 </div>
               </div>
 
+              {/* Modal Show All Filters */}
+              <Dialog
+                open={modalShowAllFilters}
+                onClose={() => {
+                  setModalShowAllFilters(false);
+                  showScrollbar();
+                }}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+                maxWidth="md"
+                fullWidth
+              >
+                <div className="modal_show_all_filters_block px-4 py-4">
+                  <DialogTitle id="alert-dialog-title">
+                    Filter by Category
+                  </DialogTitle>
+                  <div className="filter_by_category mt-1 grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {loadingFiltersOrCategories ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      filtersOrCategories?.map((item: any) => {
+                        return (
+                          <div
+                            key={`${item.id}`}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="checkbox"
+                              id={`${item.id}`}
+                              className="outline-none cursor-pointer"
+                            />
+                            <label
+                              className="text-[#6C757D] text-[13px] font-400 cursor-pointer"
+                              htmlFor={item.id}
+                            >
+                              {item.filterName}
+                            </label>
+                          </div>
+                        );
+                      })
+                    )}
+                    {loadingFiltersOrCategories === false &&
+                      filtersOrCategories.length === 0 && (
+                        <h1>Filters not found</h1>
+                      )}
+                  </div>
+                  <DialogActions>
+                    <button
+                      className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-[#20ACFF] rounded-[10px]"
+                      onClick={() => {
+                        setModalShowAllFilters(false);
+                      }}
+                    >
+                      Submit
+                    </button>
+                  </DialogActions>
+                </div>
+              </Dialog>
+
               {/* Modal Filter Options */}
               <Dialog
                 open={modalFilterOptions}
-                onClose={() => setModalFilterOptions(false)}
+                onClose={() => {
+                  setModalFilterOptions(false);
+                  showScrollbar();
+                }}
                 fullWidth
                 maxWidth="sm"
               >
@@ -569,7 +653,7 @@ const Books = () => {
                   <div className="header_modal_filter_options_block flex justify-between items-center mb-4">
                     <DialogTitle sx={{ p: 0 }}>Filter Options</DialogTitle>
                     <button
-                      className="add_filter_btn flex items-center gap-1 bg-[#20ACFF] px-2 py-2 rounded-[10px] text-white text-[16px] font-500 cursor-pointer hover:bg-[#0d8ae0] transition-colors"
+                      className="add_filter_btn flex items-center gap-1 bg-[#20ACFF] px-2 py-2 rounded-[10px] text-white text-[16px] font-500 cursor-pointer hover:bg-[#0d8ae0] transition-colors outline-none"
                       onClick={() => {
                         setModalFilterAdd(true);
                       }}
@@ -706,7 +790,7 @@ const Books = () => {
                         <TableCell>
                           <img
                             src={book.image_url || "/no-img.jpg"}
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="min-w-10 h-10 rounded-full object-cover"
                             alt="Book cover"
                           />
                         </TableCell>
@@ -776,7 +860,10 @@ const Books = () => {
 
         <div
           className={`transpartent_overlay_modal_filter absolute inset-0 ${modalFilter ? "pointer-events-auto" : "pointer-events-none"}`}
-          onClick={() => setModalFilter(false)}
+          onClick={() => {
+            setModalFilter(false);
+            showScrollbar();
+          }}
         ></div>
 
         {/* Delete Book Dialog */}
