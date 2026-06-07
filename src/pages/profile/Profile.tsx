@@ -22,7 +22,7 @@ import { MdOutlineClose } from "react-icons/md";
 import DialogTitle from "@mui/material/DialogTitle";
 import CircularProgress from "@mui/material/CircularProgress";
 import noImg from "../../assets/no-img.jpg";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   updatePassword,
@@ -30,26 +30,15 @@ import {
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { auth } from "../../firebase/config";
-import {
-  updateAdminProfile,
-  getPendingAdmins,
-  approveAdmin,
-} from "../../firebase/services";
+import { getPendingAdmins, approveAdmin } from "../../firebase/services";
+import { useNavigate } from "react-router-dom";
 
 type Order = "asc" | "desc";
 
 const Profile = () => {
-  const { currentUser, adminProfile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
 
-  // Profile form state
-  const [fullName, setFullName] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [imgPreview, setImgPreview] = useState<any>(null);
-  const [imgFile, setImgFile] = useState<File | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileSuccess, setProfileSuccess] = useState("");
+  const { adminProfile } = useAuth();
 
   // Password form state
   const [modalChangePassword, setModalChangePassword] = useState(false);
@@ -71,25 +60,6 @@ const Profile = () => {
   const [selectedAdminId, setSelectedAdminId] = useState<string>("");
   const [adminsLoading, setAdminsLoading] = useState(false);
 
-  // Load profile data on mount
-  useEffect(() => {
-    if (adminProfile) {
-      setFullName(adminProfile.fullName || adminProfile.name || "");
-      setDateOfBirth(
-        adminProfile.dateOfBirth || adminProfile.date_of_birth || "",
-      );
-      setPhoneNumber(adminProfile.phoneNumber || adminProfile.phone || "");
-      setEmail(adminProfile.email || "");
-      setImgPreview(
-        adminProfile.image_url || adminProfile.admin_image_url || null,
-      );
-    }
-    // Only main admin sees pending admins
-    if (adminProfile?.role === "admin" || adminProfile?.is_main_admin) {
-      loadPendingAdmins();
-    }
-  }, [adminProfile]);
-
   async function loadPendingAdmins() {
     setAdminsLoading(true);
     try {
@@ -99,39 +69,6 @@ const Profile = () => {
       console.error(err);
     } finally {
       setAdminsLoading(false);
-    }
-  }
-
-  const handleImageChange = (event: any) => {
-    const file = event.target.files[0];
-    if (file) {
-      setImgFile(file);
-      const reader = new FileReader();
-      reader.onload = (e: any) => setImgPreview(e.target.result);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  async function handleProfileSave(e: any) {
-    e.preventDefault();
-    if (!currentUser) return;
-    setProfileLoading(true);
-    setProfileSuccess("");
-    try {
-      await updateAdminProfile(
-        currentUser.uid,
-        { fullName, dateOfBirth, phoneNumber, email },
-        imgFile || undefined,
-      );
-      await refreshProfile();
-      setProfileSuccess("Profile updated successfully!");
-      setImgFile(null);
-      setTimeout(() => setProfileSuccess(""), 3000);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update profile");
-    } finally {
-      setProfileLoading(false);
     }
   }
 
@@ -214,16 +151,63 @@ const Profile = () => {
       disablePadding: false,
       label: "Full Name",
     },
-    { id: "dateOfBirth", numeric: false, disablePadding: false, label: "Age" },
+    {
+      id: "dateOfBirth",
+      numeric: false,
+      disablePadding: false,
+      label: "Age",
+    },
     {
       id: "phoneNumber",
       numeric: false,
       disablePadding: false,
       label: "Phone number",
     },
-    { id: "email", numeric: false, disablePadding: false, label: "Email" },
-    { id: "action", numeric: false, disablePadding: false, label: "Action" },
+    {
+      id: "email",
+      numeric: false,
+      disablePadding: false,
+      label: "Email",
+    },
+    {
+      id: "action",
+      numeric: false,
+      disablePadding: false,
+      label: "Action",
+    },
   ];
+
+  const handleRequestSort = (_: React.MouseEvent<unknown>, property: any) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setSelected(pendingAdmins.map((n: any) => n.id));
+      return;
+    }
+    setSelected([]);
+  };
+
+  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangeRowsPerPage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const emptyRows =
+    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - pendingAdmins.length) : 0;
+  const visibleRows = useMemo(
+    () =>
+      [...pendingAdmins]
+        .sort(getComparator(order, orderBy))
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [pendingAdmins, order, orderBy, page, rowsPerPage],
+  );
 
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
     const createSortHandler =
@@ -286,38 +270,6 @@ const Profile = () => {
     );
   }
 
-  const handleRequestSort = (_: React.MouseEvent<unknown>, property: any) => {
-    const isAsc = orderBy === property && order === "asc";
-    setOrder(isAsc ? "desc" : "asc");
-    setOrderBy(property);
-  };
-
-  const handleSelectAllClick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.checked) {
-      setSelected(pendingAdmins.map((n: any) => n.id));
-      return;
-    }
-    setSelected([]);
-  };
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const emptyRows =
-    page > 0 ? Math.max(0, (1 + page) * rowsPerPage - pendingAdmins.length) : 0;
-  const visibleRows = useMemo(
-    () =>
-      [...pendingAdmins]
-        .sort(getComparator(order, orderBy))
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [pendingAdmins, order, orderBy, page, rowsPerPage],
-  );
-
   return (
     <>
       <div className="profile_component">
@@ -328,7 +280,7 @@ const Profile = () => {
             <div className="header_profile_component_block shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4">
               <FormControl fullWidth>
                 <InputLabel>Language</InputLabel>
-                <Select label="Language" value="" onChange={() => {}}>
+                <Select label="Language">
                   <MenuItem value={""} sx={{ color: "gray" }} disabled>
                     Language
                   </MenuItem>
@@ -343,135 +295,58 @@ const Profile = () => {
           {/* Profile Section */}
           <div className="section_profile_component mt-6">
             <h1 className="text-[24px] font-600">Profile</h1>
-            <form
-              onSubmit={handleProfileSave}
-              className="edit_profile_form shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 mt-2 flex sm:flex-col lg:flex-row lg:justify-between lg:items-end gap-10"
-            >
-              <div className="block_img_profile_and_input_profile_component flex sm:flex-row lg:flex-col sm:justify-center lg:justify-start gap-12">
-                <div className="block_edit_img flex flex-col gap-3">
+            <div className="admin_info shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 mt-2 flex sm:flex-col lg:flex-row lg:justify-evenly lg:items-center gap-10">
+              <div className="block_admin_img flex sm:flex-row lg:flex-col sm:justify-center lg:justify-start gap-12">
+                <div className="block_flex_img flex flex-col gap-3">
                   <img
                     className="w-38 h-38 shadow-2xl object-cover rounded-full"
-                    src={imgPreview || noImg}
+                    src={adminProfile.image_url || noImg}
                     alt=""
                     onError={(e: any) => {
                       e.target.src = noImg;
                     }}
                   />
-                  <div className="label_and_input_user_profile_img flex flex-col gap-1">
-                    <label
-                      htmlFor="user_profile_img"
-                      className="text-[15px] text-[gray] cursor-pointer"
-                    >
-                      Profile image
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="rounded-[5px] max-w-55 outline-none px-3 shadow-xl py-1 bg-white cursor-pointer"
-                      id="user_profile_img"
-                      onChange={handleImageChange}
-                    />
-                  </div>
                 </div>
               </div>
 
-              <div className="labels_and_inputs_edit_profile grid sm:grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="admin_info_block grid sm:grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label
-                    htmlFor="fullname"
-                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
-                  >
+                  <h2 className="title_fullname text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Full Name
-                  </label>
-                  <TextField
-                    id="fullname"
-                    label="Enter your full name"
-                    variant="outlined"
-                    fullWidth
-                    sx={{ marginTop: 1 }}
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                  />
+                  </h2>
+                  <h1 className="fullname">{adminProfile.fullName}</h1>
                 </div>
                 <div>
-                  <label
-                    htmlFor="dateOfBirth"
-                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
-                  >
-                    Date of Birth
-                  </label>
-                  <TextField
-                    id="dateOfBirth"
-                    label="Date of Birth"
-                    variant="outlined"
-                    fullWidth
-                    sx={{ marginTop: 1 }}
-                    type="date"
-                    InputLabelProps={{ shrink: true }}
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                  />
+                  <h2 className="title_date_of_birth text-[#9794AA] text-[16px] font-500 cursor-pointer">
+                    Date of birth
+                  </h2>
+                  <h1 className="date_of_birth">{adminProfile.dateOfBirth}</h1>
                 </div>
                 <div>
-                  <label
-                    htmlFor="phoneNumber"
-                    className="label_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer"
-                  >
+                  <h2 className="title_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Phone Number
-                  </label>
-                  <TextField
-                    id="phoneNumber"
-                    label="Enter your phone number"
-                    variant="outlined"
-                    fullWidth
-                    sx={{ marginTop: 1 }}
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
+                  </h2>
+                  <h1 className="phone_number">{adminProfile.dateOfBirth}</h1>
                 </div>
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="label_email text-[#9794AA] text-[16px] font-500 cursor-pointer"
-                  >
-                    Email
-                  </label>
-                  <TextField
-                    id="email"
-                    label="Enter your email"
-                    variant="outlined"
-                    fullWidth
-                    sx={{ marginTop: 1 }}
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <h2 className="title_email text-[#9794AA] text-[16px] font-500 cursor-pointer">
+                    Phone Number
+                  </h2>
+                  <h1 className="email">{adminProfile.email}</h1>
                 </div>
               </div>
+            </div>
 
-              <div className="block_btn_submit flex flex-col gap-2">
-                {profileSuccess && (
-                  <p className="text-green-500 text-sm">{profileSuccess}</p>
-                )}
-                <button
-                  type="submit"
-                  disabled={profileLoading}
-                  className="btn_submit bg-[#20ACFF] px-5 py-2 rounded-[15px] cursor-pointer text-[#FFFFFF] text-[19px] font-500 sm:w-full disabled:opacity-50"
-                >
-                  {profileLoading ? "Saving..." : "Edit"}
-                </button>
-              </div>
-            </form>
-
-            {/* Change Password */}
+            {/* Edit Admin */}
             <div className="block_link_change_password mt-3">
-              <h1 className="text-[24px] font-600">Edit Password</h1>
+              <h1 className="text-[24px] font-600">Edit Admin</h1>
               <button
-                onClick={() => setModalChangePassword(true)}
+                onClick={() => {
+                  navigate("/dashboard/edit-admin");
+                }}
                 className="text-[blue] hover:underline cursor-pointer bg-transparent border-none text-[16px]"
               >
-                Change password
+                Change admin info
               </button>
             </div>
           </div>

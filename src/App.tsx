@@ -17,6 +17,7 @@ import SignUp from "./pages/signUp/SignUp";
 import AuthCheck from "./utils/AuthCheck";
 import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import ProtectedRoute from "./utils/ProtectedRoute";
+import EditAdmin from "./pages/editAdmin/EditAdmin";
 
 function App() {
   const router = createBrowserRouter([
@@ -140,6 +141,14 @@ function App() {
           element: (
             <ProtectedRoute>
               <ReturnBookRequests />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "edit-admin",
+          element: (
+            <ProtectedRoute>
+              <EditAdmin />
             </ProtectedRoute>
           ),
         },

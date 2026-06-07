@@ -29,6 +29,33 @@ import {
 
 type Order = "asc" | "desc";
 
+// Helper function to format Firebase Timestamp or date string
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) return "-";
+
+  // Handle Firebase Timestamp
+  if (
+    dateValue &&
+    typeof dateValue === "object" &&
+    "seconds" in dateValue &&
+    "nanoseconds" in dateValue
+  ) {
+    return new Date(dateValue.seconds * 1000).toLocaleDateString();
+  }
+
+  // Handle string date
+  if (typeof dateValue === "string") {
+    return dateValue;
+  }
+
+  // Handle Date object
+  if (dateValue instanceof Date) {
+    return dateValue.toLocaleDateString();
+  }
+
+  return "-";
+};
+
 const ReceivedMembers = () => {
   const { adminProfile } = useAuth();
   const [order, setOrder] = useState<Order>("asc");
@@ -220,11 +247,33 @@ const ReceivedMembers = () => {
     [filteredRows, order, orderBy, page, rowsPerPage],
   );
 
-  const getStatus = (dueDate: string) => {
+  const getStatus = (dueDate: any) => {
     if (!dueDate) return "-";
+
+    let dueDateObj: Date;
+
+    // Handle Firebase Timestamp
+    if (
+      dueDate &&
+      typeof dueDate === "object" &&
+      "seconds" in dueDate &&
+      "nanoseconds" in dueDate
+    ) {
+      dueDateObj = new Date(dueDate.seconds * 1000);
+    }
+    // Handle string date
+    else if (typeof dueDate === "string") {
+      dueDateObj = new Date(dueDate);
+    }
+    // Handle Date object
+    else if (dueDate instanceof Date) {
+      dueDateObj = dueDate;
+    } else {
+      return "-";
+    }
+
     const now = new Date();
-    const due = new Date(dueDate);
-    return due < now ? "Overdue" : "Active";
+    return dueDateObj < now ? "Overdue" : "Active";
   };
 
   return (
@@ -297,10 +346,12 @@ const ReceivedMembers = () => {
                               </TableCell>
                               <TableCell>{row.borrowerName || "-"}</TableCell>
                               <TableCell>
-                                {row.dateBorrowed || row.borrow_date || "-"}
+                                {formatDate(
+                                  row.dateBorrowed || row.borrow_date,
+                                )}
                               </TableCell>
                               <TableCell>
-                                {row.dueDate || row.due_date || "-"}
+                                {formatDate(row.dueDate || row.due_date)}
                               </TableCell>
                               <TableCell>
                                 <span
