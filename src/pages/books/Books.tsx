@@ -66,13 +66,18 @@ const Books = () => {
   );
   const [newFilterName, setNewFilterName] = useState("");
   const [editFilterName, setEditFilterName] = useState("");
-  const [books, setBooks] = useState<any[]>([]);
+  // const [books, setBooks] = useState<any[]>([]);
+  const [allBooks, setAllBooks] = useState<any[]>([]); // Store all books for filtering
   const [searchInpValue, setSearchInpValue] = useState("");
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [filtersOrCategories, setFiltersOrCategories] = useState<any[]>([]);
   const [loadingFiltersOrCategories, setLoadingFiltersOrCategories] =
     useState(false);
+
+  // New state for selected filters
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]); // For modal temp selection
 
   // Validation errors for filters
   const [filterErrors, setFilterErrors] = useState({
@@ -205,6 +210,35 @@ const Books = () => {
       : (a, b) => -descendingComparator(a, b, orderBy);
   }
 
+  // Filter books based on selected categories
+  const filteredBooks = useMemo(() => {
+    if (selectedFilters.length === 0) {
+      return allBooks;
+    }
+    return allBooks.filter((book) => selectedFilters.includes(book.category));
+  }, [allBooks, selectedFilters]);
+
+  // Apply search filter on top of category filter
+  const searchedAndFilteredBooks = useMemo(() => {
+    if (!searchInpValue.trim()) {
+      return filteredBooks;
+    }
+    const lowerSearch = searchInpValue.toLowerCase();
+    return filteredBooks.filter(
+      (book) =>
+        book.title?.toLowerCase().includes(lowerSearch) ||
+        book.author?.toLowerCase().includes(lowerSearch),
+    );
+  }, [filteredBooks, searchInpValue]);
+
+  const visibleRows = useMemo(
+    () =>
+      [...searchedAndFilteredBooks]
+        .sort(getComparator(order, orderBy))
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [order, orderBy, page, rowsPerPage, searchedAndFilteredBooks],
+  );
+
   const headCells: any[] = [
     {
       id: "image_url",
@@ -282,14 +316,6 @@ const Books = () => {
     setOrderBy(property);
   };
 
-  const visibleRows = useMemo(
-    () =>
-      [...books]
-        .sort(getComparator(order, orderBy))
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [order, orderBy, page, rowsPerPage, books],
-  );
-
   function removeScrollbar() {
     document.body.classList.add("scroll_hidden_modal_filter_without_overlay");
     document.body.classList.remove(
@@ -307,8 +333,9 @@ const Books = () => {
   async function loadBooks() {
     setLoadingBooks(true);
     try {
-      const data = await getBooks(searchInpValue);
-      setBooks(data);
+      const data = await getBooks("");
+      setAllBooks(data);
+      // setBooks(data);
     } catch (error) {
       console.error(error);
       showSnackbar("Failed to load books", "error");
@@ -333,9 +360,15 @@ const Books = () => {
   useEffect(() => {
     loadCategories();
   }, []);
+
   useEffect(() => {
     loadBooks();
-  }, [searchInpValue, page, rowsPerPage]);
+  }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [selectedFilters, searchInpValue]);
 
   async function handleDeleteBook() {
     if (!selectedBookId) return;
@@ -413,6 +446,40 @@ const Books = () => {
     }
   }
 
+  // Handle filter checkbox change in modal
+  const handleFilterChange = (categoryName: string, checked: boolean) => {
+    if (checked) {
+      setTempSelectedFilters([...tempSelectedFilters, categoryName]);
+    } else {
+      setTempSelectedFilters(
+        tempSelectedFilters.filter((f) => f !== categoryName),
+      );
+    }
+  };
+
+  // Apply filters from modal
+  const applyFilters = () => {
+    setSelectedFilters(tempSelectedFilters);
+    setModalFilter(false);
+    setModalShowAllFilters(false);
+    showScrollbar();
+    showSnackbar(`Applied ${tempSelectedFilters.length} filter(s)`, "success");
+  };
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSelectedFilters([]);
+    setTempSelectedFilters([]);
+    showSnackbar("All filters cleared", "info");
+  };
+
+  // Open filter modal and sync temp filters with current selected filters
+  const openFilterModal = () => {
+    setTempSelectedFilters([...selectedFilters]);
+    setModalFilter(true);
+    removeScrollbar();
+  };
+
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
     const createSortHandler =
       (property: any) => (event: React.MouseEvent<unknown>) =>
@@ -472,8 +539,18 @@ const Books = () => {
           id="tableTitle"
           component="div"
         >
-          Books
+          Books{" "}
+          {selectedFilters.length > 0 &&
+            `(Filtered: ${selectedFilters.length} categor${selectedFilters.length > 1 ? "ies" : "y"})`}
         </Typography>
+        {selectedFilters.length > 0 && (
+          <button
+            onClick={clearFilters}
+            className="text-red-500 hover:text-red-700 text-sm px-3 py-1 rounded border border-red-300 hover:border-red-500 transition-colors cursor-pointer"
+          >
+            Clear Filters
+          </button>
+        )}
       </Toolbar>
     );
   }
@@ -487,19 +564,21 @@ const Books = () => {
             <input
               type="search"
               className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
-              placeholder="Search enter..."
+              placeholder="Search by title or author..."
               value={searchInpValue}
               onChange={(e) => setSearchInpValue(e.target.value)}
             />
             <div className="btn_filter_and_modal_filter_overlay_transparent_block md:relative flex flex-col">
               <button
-                className="icons_filter_block shadow-[0_0_6px_gray] flex justify-center items-center p-2 rounded-[10px] cursor-pointer"
-                onClick={() => {
-                  setModalFilter(true);
-                  removeScrollbar();
-                }}
+                className="icons_filter_block shadow-[0_0_6px_gray] flex justify-center items-center p-2 rounded-[10px] cursor-pointer relative"
+                onClick={openFilterModal}
               >
                 <TuneIcon sx={{ fontSize: "26px" }} />
+                {selectedFilters.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {selectedFilters.length}
+                  </span>
+                )}
               </button>
 
               {/* Modal filter */}
@@ -526,7 +605,9 @@ const Books = () => {
                     </h1>
                     <div className="filter_by_category mt-1 grid grid-cols-2 gap-2">
                       {loadingFiltersOrCategories ? (
-                        <h1>Loading...</h1>
+                        <div className="col-span-2 text-center py-4">
+                          <CircularProgress size={24} />
+                        </div>
                       ) : (
                         filtersOrCategories?.slice(0, 8)?.map((item: any) => (
                           <div
@@ -535,12 +616,21 @@ const Books = () => {
                           >
                             <input
                               type="checkbox"
-                              id={item.id}
+                              id={`filter-${item.id}`}
                               className="outline-none cursor-pointer"
+                              checked={tempSelectedFilters.includes(
+                                item.filterName,
+                              )}
+                              onChange={(e) =>
+                                handleFilterChange(
+                                  item.filterName,
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <label
                               className="text-[#6C757D] text-[13px] font-400 cursor-pointer"
-                              htmlFor={item.id}
+                              htmlFor={`filter-${item.id}`}
                             >
                               {item.filterName}
                             </label>
@@ -569,12 +659,22 @@ const Books = () => {
                       Filter Options
                     </button>
                   </div>
-                  <div className="btn_submit_block flex justify-end mt-2">
+                  <div className="btn_submit_block flex justify-end gap-2 mt-2">
+                    <button
+                      className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-gray-500 rounded-[10px]"
+                      onClick={() => {
+                        setTempSelectedFilters([]);
+                        setModalFilter(false);
+                        showScrollbar();
+                      }}
+                    >
+                      Reset
+                    </button>
                     <button
                       className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-[#20ACFF] rounded-[10px]"
-                      onClick={() => setModalFilter(false)}
+                      onClick={applyFilters}
                     >
-                      Submit
+                      Apply
                     </button>
                   </div>
                 </div>
@@ -608,12 +708,21 @@ const Books = () => {
                           >
                             <input
                               type="checkbox"
-                              id={`${item.id}`}
+                              id={`all-filter-${item.id}`}
                               className="outline-none cursor-pointer"
+                              checked={tempSelectedFilters.includes(
+                                item.filterName,
+                              )}
+                              onChange={(e) =>
+                                handleFilterChange(
+                                  item.filterName,
+                                  e.target.checked,
+                                )
+                              }
                             />
                             <label
                               className="text-[#6C757D] text-[13px] font-400 cursor-pointer"
-                              htmlFor={item.id}
+                              htmlFor={`all-filter-${item.id}`}
                             >
                               {item.filterName}
                             </label>
@@ -623,17 +732,25 @@ const Books = () => {
                     )}
                     {loadingFiltersOrCategories === false &&
                       filtersOrCategories.length === 0 && (
-                        <h1>Filters not found</h1>
+                        <h1 className="col-span-full text-center">
+                          Filters not found
+                        </h1>
                       )}
                   </div>
                   <DialogActions>
                     <button
-                      className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-[#20ACFF] rounded-[10px]"
+                      className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-gray-500 rounded-[10px]"
                       onClick={() => {
                         setModalShowAllFilters(false);
                       }}
                     >
-                      Submit
+                      Cancel
+                    </button>
+                    <button
+                      className="btn_submit_filter cursor-pointer px-5 py-1 text-[#FFFFFF] text-[18px] font-500 bg-[#20ACFF] rounded-[10px]"
+                      onClick={applyFilters}
+                    >
+                      Apply Filters
                     </button>
                   </DialogActions>
                 </div>
@@ -777,7 +894,7 @@ const Books = () => {
                     orderBy={orderBy}
                     onSelectAllClick={() => {}}
                     onRequestSort={handleRequestSort}
-                    rowCount={books.length}
+                    rowCount={searchedAndFilteredBooks.length}
                   />
                   <TableBody>
                     {visibleRows.map((book: any, index: number) => (
@@ -790,7 +907,7 @@ const Books = () => {
                         <TableCell>
                           <img
                             src={book.image_url || "/no-img.jpg"}
-                            className="w-10 h-10 rounded-full object-cover"
+                            className="min-w-10 h-10 rounded-full object-cover"
                             alt="Book cover"
                           />
                         </TableCell>
@@ -830,11 +947,13 @@ const Books = () => {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {!loadingBooks && books.length === 0 && (
+                    {!loadingBooks && searchedAndFilteredBooks.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8}>
                           <h1 className="text-center py-4 text-gray-400">
-                            No books found. Add your first book!
+                            {allBooks.length === 0
+                              ? "No books found. Add your first book!"
+                              : "No books match the selected filters"}
                           </h1>
                         </TableCell>
                       </TableRow>
@@ -845,7 +964,7 @@ const Books = () => {
               <TablePagination
                 rowsPerPageOptions={[17, 10, 8, 5]}
                 component="div"
-                count={books.length}
+                count={searchedAndFilteredBooks.length}
                 rowsPerPage={rowsPerPage}
                 page={page}
                 onPageChange={(_, newPage) => setPage(newPage)}

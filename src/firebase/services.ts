@@ -56,14 +56,22 @@ const compressImage = (file: File, maxSizeMB = 1): Promise<File> => {
         ctx.drawImage(img, 0, 0, width, height);
         let quality = 0.8;
         const tryCompress = () => {
-          canvas.toBlob((blob) => {
-            if (blob && blob.size > maxSizeMB * 1024 * 1024 && quality > 0.1) {
-              quality -= 0.1;
-              tryCompress();
-            } else if (blob) {
-              resolve(new File([blob], file.name, { type: "image/jpeg" }));
-            }
-          }, "image/jpeg", quality);
+          canvas.toBlob(
+            (blob) => {
+              if (
+                blob &&
+                blob.size > maxSizeMB * 1024 * 1024 &&
+                quality > 0.1
+              ) {
+                quality -= 0.1;
+                tryCompress();
+              } else if (blob) {
+                resolve(new File([blob], file.name, { type: "image/jpeg" }));
+              }
+            },
+            "image/jpeg",
+            quality,
+          );
         };
         tryCompress();
       };
@@ -78,7 +86,7 @@ export const uploadImageToCloudinary = async (file: File): Promise<string> => {
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    { method: "POST", body: formData }
+    { method: "POST", body: formData },
   );
   const data = await response.json();
   if (!data.secure_url) throw new Error(data.error?.message || "Upload failed");
@@ -90,7 +98,11 @@ export const uploadImageToCloudinary = async (file: File): Promise<string> => {
 // ============================================================
 
 export const firebaseSignIn = async (email: string, password: string) => {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const userCredential = await signInWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
   return userCredential.user;
 };
 
@@ -99,9 +111,13 @@ export const firebaseSignUp = async (
   password: string,
   fullName: string,
   phoneNumber: string,
-  dateOfBirth: string
+  dateOfBirth: string,
 ) => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const userCredential = await createUserWithEmailAndPassword(
+    auth,
+    email,
+    password,
+  );
   const user = userCredential.user;
   await updateProfile(user, { displayName: fullName });
   await setDoc(doc(db, "admins", user.uid), {
@@ -127,13 +143,16 @@ export const firebaseSignOut = async () => {
 export const getBooks = async (searchTerm = "") => {
   const booksRef = collection(db, "books");
   const snapshot = await getDocs(booksRef);
-  const books = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const books = snapshot.docs.map((doc: any) => ({
+    id: doc.id,
+    ...doc.data(),
+  }));
   if (searchTerm) {
     const lower = searchTerm.toLowerCase();
     return books.filter(
       (b: any) =>
         b.title?.toLowerCase().includes(lower) ||
-        b.author?.toLowerCase().includes(lower)
+        b.author?.toLowerCase().includes(lower),
     );
   }
   return books;
@@ -146,7 +165,11 @@ export const getBookById = async (bookId: string) => {
   return null;
 };
 
-export const addBook = async (bookData: any, imageFile?: File, bgImageFile?: File) => {
+export const addBook = async (
+  bookData: any,
+  imageFile?: File,
+  bgImageFile?: File,
+) => {
   let image_url = "";
   let bg_image_url = "";
   if (imageFile) image_url = await uploadImageToCloudinary(imageFile);
@@ -160,10 +183,17 @@ export const addBook = async (bookData: any, imageFile?: File, bgImageFile?: Fil
   return docRef.id;
 };
 
-export const updateBook = async (bookId: string, bookData: any, imageFile?: File, bgImageFile?: File) => {
+export const updateBook = async (
+  bookId: string,
+  bookData: any,
+  imageFile?: File,
+  bgImageFile?: File,
+) => {
   let updateData = { ...bookData };
-  if (imageFile) updateData.image_url = await uploadImageToCloudinary(imageFile);
-  if (bgImageFile) updateData.bg_image_url = await uploadImageToCloudinary(bgImageFile);
+  if (imageFile)
+    updateData.image_url = await uploadImageToCloudinary(imageFile);
+  if (bgImageFile)
+    updateData.bg_image_url = await uploadImageToCloudinary(bgImageFile);
   await updateDoc(doc(db, "books", bookId), updateData);
 };
 
@@ -177,7 +207,7 @@ export const deleteBook = async (bookId: string) => {
 
 export const getCategories = async () => {
   const snapshot = await getDocs(collection(db, "categories"));
-  return snapshot.docs.map((doc) => ({
+  return snapshot.docs.map((doc: any) => ({
     id: doc.id,
     filterName: doc.data().name,
     ...doc.data(),
@@ -194,7 +224,10 @@ export const addCategory = async (name: string) => {
 };
 
 export const updateCategory = async (categoryId: string, name: string) => {
-  await updateDoc(doc(db, "categories", categoryId), { name, filterName: name });
+  await updateDoc(doc(db, "categories", categoryId), {
+    name,
+    filterName: name,
+  });
 };
 
 export const deleteCategory = async (categoryId: string) => {
@@ -207,7 +240,7 @@ export const deleteCategory = async (categoryId: string) => {
 
 export const getMembers = async () => {
   const snapshot = await getDocs(collection(db, "users"));
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const getMemberById = async (memberId: string) => {
@@ -217,15 +250,23 @@ export const getMemberById = async (memberId: string) => {
 };
 
 export const getMemberBookshelf = async (memberId: string) => {
-  const q = query(collection(db, "borrows"), where("userId", "==", memberId), where("status", "==", "active"));
+  const q = query(
+    collection(db, "borrows"),
+    where("userId", "==", memberId),
+    where("status", "==", "active"),
+  );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const getMemberHistory = async (memberId: string) => {
-  const q = query(collection(db, "borrows"), where("userId", "==", memberId), where("status", "==", "returned"));
+  const q = query(
+    collection(db, "borrows"),
+    where("userId", "==", memberId),
+    where("status", "==", "returned"),
+  );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 // ============================================================
@@ -233,9 +274,13 @@ export const getMemberHistory = async (memberId: string) => {
 // ============================================================
 
 export const getReceiveBookRequests = async () => {
-  const q = query(collection(db, "bookRequests"), where("type", "==", "receive"), where("status", "==", "pending"));
+  const q = query(
+    collection(db, "bookRequests"),
+    where("type", "==", "receive"),
+    where("status", "==", "pending"),
+  );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const acceptReceiveBookRequest = async (requestId: string) => {
@@ -268,9 +313,13 @@ export const declineReceiveBookRequest = async (requestId: string) => {
 };
 
 export const getReturnBookRequests = async () => {
-  const q = query(collection(db, "bookRequests"), where("type", "==", "return"), where("status", "==", "pending"));
+  const q = query(
+    collection(db, "bookRequests"),
+    where("type", "==", "return"),
+    where("status", "==", "pending"),
+  );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const acceptReturnBookRequest = async (requestId: string) => {
@@ -287,7 +336,9 @@ export const acceptReturnBookRequest = async (requestId: string) => {
   const bookDoc = await getDoc(doc(db, "books", reqData.bookId));
   if (bookDoc.exists()) {
     const copies = bookDoc.data().available_copies || 0;
-    await updateDoc(doc(db, "books", reqData.bookId), { available_copies: copies + 1 });
+    await updateDoc(doc(db, "books", reqData.bookId), {
+      available_copies: copies + 1,
+    });
   }
 };
 
@@ -298,7 +349,7 @@ export const acceptReturnBookRequest = async (requestId: string) => {
 export const getReceivedMembers = async () => {
   const q = query(collection(db, "borrows"), where("status", "==", "active"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const deleteReceivedMember = async (borrowId: string) => {
@@ -310,12 +361,21 @@ export const deleteReceivedMember = async (borrowId: string) => {
 // ============================================================
 
 export const getDashboardStats = async () => {
-  const [membersSnap, booksSnap, activeBorrowsSnap, overdueSnap] = await Promise.all([
-    getDocs(collection(db, "users")),
-    getDocs(collection(db, "books")),
-    getDocs(query(collection(db, "borrows"), where("status", "==", "active"))),
-    getDocs(query(collection(db, "borrows"), where("status", "==", "active"), where("dueDate", "<", Timestamp.now()))),
-  ]);
+  const [membersSnap, booksSnap, activeBorrowsSnap, overdueSnap] =
+    await Promise.all([
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "books")),
+      getDocs(
+        query(collection(db, "borrows"), where("status", "==", "active")),
+      ),
+      getDocs(
+        query(
+          collection(db, "borrows"),
+          where("status", "==", "active"),
+          where("dueDate", "<", Timestamp.now()),
+        ),
+      ),
+    ]);
   return {
     total_members: membersSnap.size,
     total_books: booksSnap.size,
@@ -328,10 +388,10 @@ export const getOverdueBorrowers = async () => {
   const q = query(
     collection(db, "borrows"),
     where("status", "==", "active"),
-    where("dueDate", "<", Timestamp.now())
+    where("dueDate", "<", Timestamp.now()),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => {
+  return snapshot.docs.map((doc: any) => {
     const data = doc.data();
     const dueDate = data.dueDate?.toDate?.() || new Date(data.dueDate);
     const now = new Date();
@@ -348,7 +408,7 @@ export const getOverdueBorrowers = async () => {
 export const getPendingAdmins = async () => {
   const q = query(collection(db, "admins"), where("role", "==", "pending"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const approveAdmin = async (adminId: string) => {
@@ -361,9 +421,14 @@ export const getCurrentAdminProfile = async (uid: string) => {
   return null;
 };
 
-export const updateAdminProfile = async (uid: string, data: any, imageFile?: File) => {
+export const updateAdminProfile = async (
+  uid: string,
+  data: any,
+  imageFile?: File,
+) => {
   let profileData = { ...data };
-  if (imageFile) profileData.image_url = await uploadImageToCloudinary(imageFile);
+  if (imageFile)
+    profileData.image_url = await uploadImageToCloudinary(imageFile);
   await updateDoc(doc(db, "admins", uid), profileData);
   if (data.fullName && auth.currentUser) {
     await updateProfile(auth.currentUser, { displayName: data.fullName });
