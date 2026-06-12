@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { BsThreeDots } from "react-icons/bs";
 import { alpha } from "@mui/material/styles";
 import { useEffect, useMemo, useState } from "react";
@@ -31,6 +31,109 @@ import {
 
 type Order = "asc" | "desc";
 
+// Helper function to format date to DD.MM.YYYY
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) return "-";
+
+  let date: Date | null = null;
+
+  // Handle Firebase Timestamp
+  if (
+    dateValue &&
+    typeof dateValue === "object" &&
+    "seconds" in dateValue &&
+    "nanoseconds" in dateValue
+  ) {
+    date = new Date(dateValue.seconds * 1000);
+  }
+  // Handle string date
+  else if (typeof dateValue === "string") {
+    // Check if it's already in DD.MM.YYYY format
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateValue)) {
+      return dateValue;
+    }
+    // Check if it's in DD-MM-YYYY format
+    if (/^\d{2}-\d{2}-\d{4}$/.test(dateValue)) {
+      const [day, month, year] = dateValue.split("-").map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(dateValue);
+    }
+  }
+  // Handle Date object
+  else if (dateValue instanceof Date) {
+    date = dateValue;
+  }
+  // Handle function toDate (Firestore Timestamp alternative)
+  else if (dateValue?.toDate && typeof dateValue.toDate === "function") {
+    date = dateValue.toDate();
+  }
+
+  // Format date as DD.MM.YYYY
+  if (date && !isNaN(date.getTime())) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  return "-";
+};
+
+// Helper function to format due date with days left
+const formatDueDate = (dueDateValue: any): string => {
+  if (!dueDateValue) return "-";
+
+  let dueDate: Date | null = null;
+
+  // Handle Firebase Timestamp
+  if (
+    dueDateValue &&
+    typeof dueDateValue === "object" &&
+    "seconds" in dueDateValue &&
+    "nanoseconds" in dueDateValue
+  ) {
+    dueDate = new Date(dueDateValue.seconds * 1000);
+  }
+  // Handle string date
+  else if (typeof dueDateValue === "string") {
+    // Check if it's in DD.MM.YYYY format
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(dueDateValue)) {
+      const [day, month, year] = dueDateValue.split(".").map(Number);
+      dueDate = new Date(year, month - 1, day);
+    } else {
+      dueDate = new Date(dueDateValue);
+    }
+  }
+  // Handle Date object
+  else if (dueDateValue instanceof Date) {
+    dueDate = dueDateValue;
+  }
+
+  if (!dueDate || isNaN(dueDate.getTime())) return "-";
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diffTime = dueDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const day = String(dueDate.getDate()).padStart(2, "0");
+  const month = String(dueDate.getMonth() + 1).padStart(2, "0");
+  const year = dueDate.getFullYear();
+  const formattedDate = `${day}.${month}.${year}`;
+
+  if (diffDays < 0) {
+    return `${formattedDate} (Overdue by ${Math.abs(diffDays)} days)`;
+  }
+  if (diffDays === 0) {
+    return `${formattedDate} (Due today)`;
+  }
+  if (diffDays <= 3) {
+    return `${formattedDate} (Due in ${diffDays} days)`;
+  }
+  return formattedDate;
+};
+
 const Members = () => {
   const { adminProfile } = useAuth();
   const [order, setOrder] = useState<Order>("asc");
@@ -43,8 +146,12 @@ const Members = () => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
+  
   const [bookshelf, setBookshelf] = useState<any[]>([]);
+  console.log(bookshelf);
   const [history, setHistory] = useState<any[]>([]);
+  console.log(history);
+  
   const [searchValue, setSearchValue] = useState("");
 
   useEffect(() => {
@@ -253,7 +360,11 @@ const Members = () => {
                   Admin
                 </h1>
               </div>
-              <img className="w-14 h-14" src={userImg} alt="" />
+              <img
+                className="w-14 h-14 rounded-full object-cover"
+                src={adminProfile?.image_url || noImg}
+                alt=""
+              />
             </div>
           </div>
 
@@ -288,14 +399,12 @@ const Members = () => {
                             <TableCell>
                               <img
                                 src={
-                                  row.member_image_url ||
-                                  row.photoURL ||
-                                  userImg
+                                  row.member_image_url || row.photoURL || noImg
                                 }
-                                className="min-w-10 h-10 rounded-full object-cover"
+                                className="w-10 h-10 rounded-full object-cover"
                                 alt=""
                                 onError={(e: any) => {
-                                  e.target.src = userImg;
+                                  e.target.src = noImg;
                                 }}
                               />
                             </TableCell>
@@ -308,7 +417,7 @@ const Members = () => {
                               {row.fullName || row.name || "-"}
                             </TableCell>
                             <TableCell>
-                              {row.dateOfBirth || row.date_of_birth || "-"}
+                              {formatDate(row.dateOfBirth || row.date_of_birth)}
                             </TableCell>
                             <TableCell>
                               {row.phoneNumber || row.phone || "-"}
@@ -376,12 +485,12 @@ const Members = () => {
                       src={
                         selectedMember?.member_image_url ||
                         selectedMember?.photoURL ||
-                        userImg
+                        noImg
                       }
                       className="w-58.5 h-68.5 rounded-xl object-cover"
                       alt=""
                       onError={(e: any) => {
-                        e.target.src = userImg;
+                        e.target.src = noImg;
                       }}
                     />
                     <div className="info_text_block">
@@ -399,9 +508,10 @@ const Members = () => {
                       <h1 className="text-[#6E6E6E] text-[17px] font-500">
                         Birth Date:{" "}
                         <span className="text-black font-400">
-                          {selectedMember?.dateOfBirth ||
-                            selectedMember?.date_of_birth ||
-                            "-"}
+                          {formatDate(
+                            selectedMember?.dateOfBirth ||
+                              selectedMember?.date_of_birth,
+                          )}
                         </span>
                       </h1>
                       <h1 className="text-[#6E6E6E] text-[17px] font-500">
@@ -437,28 +547,33 @@ const Members = () => {
                             key={book.id}
                             className="boolshelf_container flex justify-between items-center gap-3"
                           >
-                            <div className="img_book_name_and_author_name_block flex items-center gap-3">
-                              <div className="block_img bg-[#F5EABD] p-2 rounded-[5px]">
+                            <div className="img_book_name_and_author_name_block flex items-center gap-3 flex-1 min-w-0">
+                              <div className="block_img bg-[#F5EABD] p-2 rounded-[5px] shrink-0">
                                 <img
-                                  src={book.image_url || userImg}
+                                  src={
+                                    book.image_url || book.coverImage || noImg
+                                  }
                                   alt=""
                                   className="w-10.75 h-15 object-cover"
+                                  onError={(e: any) => {
+                                    e.target.src = noImg;
+                                  }}
                                 />
                               </div>
-                              <div className="name_and_author_of_book">
-                                <h1 className="name_of_book text-[20px] font-500">
-                                  {book.bookTitle || book.title}
+                              <div className="name_and_author_of_book min-w-0">
+                                <h1 className="name_of_book text-[16px] font-500 truncate">
+                                  {book.bookTitle || book.title || "-"}
                                 </h1>
-                                <p className="author_of_book text-[#515151] text-[14px] font-400">
-                                  {book.author}
+                                <p className="author_of_book text-[#515151] text-[13px] font-400 truncate">
+                                  {book.author || "-"}
                                 </p>
                               </div>
                             </div>
-                            <div className="icon_and_days_left">
+                            <div className="icon_and_days_left shrink-0">
                               <h1 className="flex items-center text-[#FF383C] gap-1.5">
                                 <LuOctagonAlert size={18} />
-                                <span className="text-[12px] font-600">
-                                  {book.dueDate || "-"}
+                                <span className="text-[11px] font-600">
+                                  {formatDueDate(book.dueDate)}
                                 </span>
                               </h1>
                             </div>
@@ -482,19 +597,22 @@ const Members = () => {
                             key={book.id}
                             className="hisory_book_container flex items-center gap-3"
                           >
-                            <div className="block_img bg-[#F5EABD] p-2 rounded-[5px]">
+                            <div className="block_img bg-[#F5EABD] p-2 rounded-[5px] shrink-0">
                               <img
-                                src={book.image_url || userImg}
+                                src={book.image_url || book.coverImage || noImg}
                                 alt=""
                                 className="w-10.75 h-15 object-cover"
+                                onError={(e: any) => {
+                                  e.target.src = noImg;
+                                }}
                               />
                             </div>
-                            <div className="name_and_author_of_book">
-                              <h1 className="name_of_book text-[20px] font-500">
-                                {book.bookTitle || book.title}
+                            <div className="name_and_author_of_book min-w-0">
+                              <h1 className="name_of_book text-[16px] font-500 truncate">
+                                {book.bookTitle || book.title || "-"}
                               </h1>
-                              <p className="author_of_book text-[#515151] text-[14px] font-400">
-                                {book.author}
+                              <p className="author_of_book text-[#515151] text-[13px] font-400 truncate">
+                                {book.author || "-"}
                               </p>
                             </div>
                           </div>

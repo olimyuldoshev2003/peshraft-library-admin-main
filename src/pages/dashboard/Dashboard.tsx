@@ -1,6 +1,6 @@
 import "./Dashboard.css";
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { LuUsers } from "react-icons/lu";
 import { PiBookOpen } from "react-icons/pi";
 import SecurityUpdateGoodOutlinedIcon from "@mui/icons-material/SecurityUpdateGoodOutlined";
@@ -141,7 +141,7 @@ const Dashboard = () => {
             </div>
             <img
               className="w-14 h-14 rounded-full object-cover"
-              src={adminProfile?.image_url || userImg}
+              src={adminProfile?.image_url || noImg}
               alt=""
             />
           </div>

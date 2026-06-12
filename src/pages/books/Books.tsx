@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import TuneIcon from "@mui/icons-material/Tune";
 import { LuPlus } from "react-icons/lu";
 import { useEffect, useMemo, useState } from "react";
@@ -740,7 +740,7 @@ const Books = () => {
             </div>
             <img
               className="w-14 h-14 rounded-full object-cover"
-              src={adminProfile?.image_url || userImg}
+              src={adminProfile?.image_url || noImg}
               alt=""
             />
           </div>
@@ -790,7 +790,7 @@ const Books = () => {
                         <TableCell>
                           <img
                             src={book.image_url || "/no-img.jpg"}
-                            className="min-w-10 h-10 rounded-full object-cover"
+                            className="w-10 h-10 rounded-full object-cover"
                             alt="Book cover"
                           />
                         </TableCell>

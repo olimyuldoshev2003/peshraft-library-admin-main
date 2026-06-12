@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { useMemo, useState, useEffect } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -29,6 +29,49 @@ import {
 import { useAuth } from "../../context/AuthContext";
 
 type Order = "asc" | "desc";
+
+// Helper function to format date to DD.MM.YYYY
+const formatDate = (dateValue: any): string => {
+  if (!dateValue) return "-";
+
+  let date: Date | null = null;
+
+  // Handle Firebase Timestamp
+  if (
+    dateValue &&
+    typeof dateValue === "object" &&
+    "seconds" in dateValue &&
+    "nanoseconds" in dateValue
+  ) {
+    date = new Date(dateValue.seconds * 1000);
+  }
+  // Handle string date
+  else if (typeof dateValue === "string") {
+    // Check if it's already in DD.MM.YYYY format
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateValue)) {
+      return dateValue;
+    }
+    date = new Date(dateValue);
+  }
+  // Handle Date object
+  else if (dateValue instanceof Date) {
+    date = dateValue;
+  }
+  // Handle function toDate (Firestore Timestamp alternative)
+  else if (dateValue?.toDate && typeof dateValue.toDate === "function") {
+    date = dateValue.toDate();
+  }
+
+  // Format date as DD.MM.YYYY
+  if (date && !isNaN(date.getTime())) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  return "-";
+};
 
 const ReceiveBookRequests = () => {
   const { adminProfile } = useAuth();
@@ -234,7 +277,7 @@ const ReceiveBookRequests = () => {
               </div>
               <img
                 className="w-14 h-14 rounded-full object-cover"
-                src={adminProfile?.image_url || userImg}
+                src={adminProfile?.image_url || noImg}
                 alt=""
               />
             </div>
@@ -269,7 +312,7 @@ const ReceiveBookRequests = () => {
                           <TableCell>
                             <img
                               src={row.img || "/no-img.jpg"}
-                              className="min-w-10 h-10 rounded-full object-cover"
+                              className="w-10 h-10 rounded-full object-cover"
                               alt=""
                             />
                           </TableCell>
@@ -283,16 +326,8 @@ const ReceiveBookRequests = () => {
                           </TableCell>
                           <TableCell>{row.phoneNumber}</TableCell>
                           <TableCell>{row.email}</TableCell>
-                          <TableCell>
-                            {row.requestDate
-                              ?.toDate?.()
-                              ?.toLocaleDateString?.() || row.requestDate}
-                          </TableCell>
-                          <TableCell>
-                            {row.borrowUntil
-                              ?.toDate?.()
-                              ?.toLocaleDateString?.() || row.borrowUntil}
-                          </TableCell>
+                          <TableCell>{formatDate(row.requestDate)}</TableCell>
+                          <TableCell>{formatDate(row.borrowUntil)}</TableCell>
                           <TableCell>{row.bookTitle}</TableCell>
                           <TableCell>{row.author}</TableCell>
                           <TableCell>

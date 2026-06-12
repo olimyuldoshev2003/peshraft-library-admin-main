@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { useMemo, useState, useEffect } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -29,9 +29,11 @@ import {
 
 type Order = "asc" | "desc";
 
-// Helper function to format Firebase Timestamp or date string
+// Helper function to format Firebase Timestamp or date string to DD.MM.YYYY
 const formatDate = (dateValue: any): string => {
   if (!dateValue) return "-";
+
+  let date: Date | null = null;
 
   // Handle Firebase Timestamp
   if (
@@ -40,20 +42,91 @@ const formatDate = (dateValue: any): string => {
     "seconds" in dateValue &&
     "nanoseconds" in dateValue
   ) {
-    return new Date(dateValue.seconds * 1000).toLocaleDateString();
+    date = new Date(dateValue.seconds * 1000);
   }
-
   // Handle string date
-  if (typeof dateValue === "string") {
-    return dateValue;
+  else if (typeof dateValue === "string") {
+    // Check if it's already in DD.MM.YYYY format
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(dateValue)) {
+      return dateValue;
+    }
+    date = new Date(dateValue);
+  }
+  // Handle Date object
+  else if (dateValue instanceof Date) {
+    date = dateValue;
   }
 
-  // Handle Date object
-  if (dateValue instanceof Date) {
-    return dateValue.toLocaleDateString();
+  // Format date as DD.MM.YYYY
+  if (date && !isNaN(date.getTime())) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
   }
 
   return "-";
+};
+
+// Helper function to calculate days left
+const calculateDaysLeft = (dueDateValue: any): number | null => {
+  if (!dueDateValue) return null;
+
+  let dueDate: Date | null = null;
+
+  // Handle Firebase Timestamp
+  if (
+    dueDateValue &&
+    typeof dueDateValue === "object" &&
+    "seconds" in dueDateValue &&
+    "nanoseconds" in dueDateValue
+  ) {
+    dueDate = new Date(dueDateValue.seconds * 1000);
+  }
+  // Handle string date
+  else if (typeof dueDateValue === "string") {
+    // Try DD.MM.YYYY format first
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(dueDateValue)) {
+      const [day, month, year] = dueDateValue.split(".").map(Number);
+      dueDate = new Date(year, month - 1, day);
+    } else {
+      dueDate = new Date(dueDateValue);
+    }
+  }
+  // Handle Date object
+  else if (dueDateValue instanceof Date) {
+    dueDate = dueDateValue;
+  }
+
+  if (!dueDate || isNaN(dueDate.getTime())) return null;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diffTime = dueDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return diffDays;
+};
+
+// Helper function to get status text and color based on days left
+const getStatusInfo = (dueDateValue: any): { text: string; color: string } => {
+  const daysLeft = calculateDaysLeft(dueDateValue);
+
+  if (daysLeft === null) return { text: "Unknown", color: "gray" };
+
+  if (daysLeft < 0) {
+    return { text: `Overdue by ${Math.abs(daysLeft)} days`, color: "red" };
+  }
+
+  if (daysLeft === 0) {
+    return { text: "Due today", color: "orange" };
+  }
+
+  if (daysLeft <= 3) {
+    return { text: `Due in ${daysLeft} days`, color: "orange" };
+  }
+
+  return { text: "Active", color: "green" };
 };
 
 const ReceivedMembers = () => {
@@ -247,35 +320,6 @@ const ReceivedMembers = () => {
     [filteredRows, order, orderBy, page, rowsPerPage],
   );
 
-  const getStatus = (dueDate: any) => {
-    if (!dueDate) return "-";
-
-    let dueDateObj: Date;
-
-    // Handle Firebase Timestamp
-    if (
-      dueDate &&
-      typeof dueDate === "object" &&
-      "seconds" in dueDate &&
-      "nanoseconds" in dueDate
-    ) {
-      dueDateObj = new Date(dueDate.seconds * 1000);
-    }
-    // Handle string date
-    else if (typeof dueDate === "string") {
-      dueDateObj = new Date(dueDate);
-    }
-    // Handle Date object
-    else if (dueDate instanceof Date) {
-      dueDateObj = dueDate;
-    } else {
-      return "-";
-    }
-
-    const now = new Date();
-    return dueDateObj < now ? "Overdue" : "Active";
-  };
-
   return (
     <>
       <div className="borrowed_books_component">
@@ -300,7 +344,11 @@ const ReceivedMembers = () => {
                   Admin
                 </h1>
               </div>
-              <img className="w-14 h-14" src={userImg} alt="" />
+              <img
+                className="w-14 h-14 rounded-full object-cover"
+                src={adminProfile?.image_url || noImg}
+                alt=""
+              />
             </div>
           </div>
 
@@ -326,7 +374,9 @@ const ReceivedMembers = () => {
                       <TableBody>
                         {visibleRows.map((row, index) => {
                           const labelId = `enhanced-table-checkbox-${index}`;
-                          const status = getStatus(row.dueDate);
+                          const statusInfo = getStatusInfo(
+                            row.dueDate || row.due_date,
+                          );
                           return (
                             <TableRow
                               hover
@@ -336,11 +386,11 @@ const ReceivedMembers = () => {
                             >
                               <TableCell>
                                 <img
-                                  src={row.member_image_url || userImg}
-                                  className="min-w-10 h-10 rounded-full object-cover"
+                                  src={row.member_image_url || noImg}
+                                  className="w-10 h-10 rounded-full object-cover"
                                   alt=""
                                   onError={(e: any) => {
-                                    e.target.src = userImg;
+                                    e.target.src = noImg;
                                   }}
                                 />
                               </TableCell>
@@ -355,13 +405,10 @@ const ReceivedMembers = () => {
                               </TableCell>
                               <TableCell>
                                 <span
-                                  className={
-                                    status === "Overdue"
-                                      ? "text-red-500 font-600"
-                                      : "text-green-600 font-600"
-                                  }
+                                  className={`font-600`}
+                                  style={{ color: statusInfo.color }}
                                 >
-                                  {status}
+                                  {statusInfo.text}
                                 </span>
                               </TableCell>
                               <TableCell>

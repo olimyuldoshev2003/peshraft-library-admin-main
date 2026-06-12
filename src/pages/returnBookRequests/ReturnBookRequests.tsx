@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { useMemo, useState, useEffect } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -28,6 +28,44 @@ import {
 import { useAuth } from "../../context/AuthContext";
 
 type Order = "asc" | "desc";
+
+// Helper function to format Firestore timestamp to DD.MM.YYYY
+const formatTimestamp = (timestamp: any): string => {
+  if (!timestamp) return "-";
+
+  let date: Date | null = null;
+
+  // If it's a Firestore Timestamp object
+  if (timestamp?.toDate && typeof timestamp.toDate === "function") {
+    date = timestamp.toDate();
+  }
+  // If it has seconds and nanoseconds
+  else if (timestamp?.seconds) {
+    date = new Date(timestamp.seconds * 1000);
+  }
+  // If it's already a string
+  else if (typeof timestamp === "string") {
+    // Check if it's already in DD.MM.YYYY format
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(timestamp)) {
+      return timestamp;
+    }
+    date = new Date(timestamp);
+  }
+  // If it's a Date object
+  else if (timestamp instanceof Date) {
+    date = timestamp;
+  }
+
+  // Format date as DD.MM.YYYY
+  if (date && !isNaN(date.getTime())) {
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+  }
+
+  return "-";
+};
 
 const ReturnBookRequests = () => {
   const { adminProfile } = useAuth();
@@ -217,7 +255,7 @@ const ReturnBookRequests = () => {
               </div>
               <img
                 className="w-14 h-14 rounded-full object-cover"
-                src={adminProfile?.image_url || userImg}
+                src={adminProfile?.image_url || noImg}
                 alt=""
               />
             </div>
@@ -252,7 +290,7 @@ const ReturnBookRequests = () => {
                           <TableCell>
                             <img
                               src={row.img || "/no-img.jpg"}
-                              className="min-w-10 h-10 rounded-full object-cover"
+                              className="w-10 h-10 rounded-full object-cover"
                               alt=""
                             />
                           </TableCell>
@@ -267,14 +305,12 @@ const ReturnBookRequests = () => {
                           <TableCell>{row.phoneNumber}</TableCell>
                           <TableCell>{row.email}</TableCell>
                           <TableCell>
-                            {row.dateBorrowed
-                              ?.toDate?.()
-                              ?.toLocaleDateString?.() || row.borrowedDate}
+                            {formatTimestamp(
+                              row.dateBorrowed || row.borrowedDate,
+                            )}
                           </TableCell>
                           <TableCell>
-                            {row.createdAt
-                              ?.toDate?.()
-                              ?.toLocaleDateString?.() || row.requestDate}
+                            {formatTimestamp(row.createdAt || row.requestDate)}
                           </TableCell>
                           <TableCell>{row.bookTitle}</TableCell>
                           <TableCell>{row.author}</TableCell>

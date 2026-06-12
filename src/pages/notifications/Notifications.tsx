@@ -1,5 +1,5 @@
 import { HiOutlineSearch } from "react-icons/hi";
-import userImg from "../../assets/user-img.svg";
+import noImg from "../../assets/no-img.jpg";
 import { LuPlus } from "react-icons/lu";
 import { AiFillEdit } from "react-icons/ai";
 import { MdDelete, MdOutlineClose } from "react-icons/md";
@@ -43,14 +43,13 @@ const Notifications = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // For add/edit button loading
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
   // Validation errors
   const [errors, setErrors] = useState({
     title: "",
     description: "",
-    date: "",
-    time: "",
     notificationType: "",
     userId: "",
     image: "",
@@ -68,11 +67,8 @@ const Notifications = () => {
   const [notificationTypeValue, setNotificationTypeValue] = useState("");
   const [titleValue, setTitleValue] = useState("");
   const [descriptionValue, setDescriptionValue] = useState("");
-  const [dateValue, setDateValue] = useState("");
-  const [timeValue, setTimeValue] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
-  const [showDateTime, setShowDateTime] = useState(true); // State for checkbox
 
   const showSnackbar = (
     message: string,
@@ -83,6 +79,14 @@ const Notifications = () => {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Get current date and time formatted
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
+    const time = now.toTimeString().split(" ")[0].slice(0, 5); // HH:MM
+    return { date, time };
   };
 
   useEffect(() => {
@@ -134,18 +138,6 @@ const Notifications = () => {
           error = "Description must be at least 10 characters";
         } else if (value.trim().length > 500) {
           error = "Description must be less than 500 characters";
-        }
-        break;
-
-      case "date":
-        if (showDateTime && !value) {
-          error = "Date is required";
-        }
-        break;
-
-      case "time":
-        if (showDateTime && !value) {
-          error = "Time is required";
         }
         break;
 
@@ -207,13 +199,6 @@ const Notifications = () => {
       validateField("image", imageFile, isEdit),
     ];
 
-    if (showDateTime) {
-      validations.push(
-        validateField("date", dateValue),
-        validateField("time", timeValue),
-      );
-    }
-
     return validations.every((v) => v === true);
   };
 
@@ -222,16 +207,11 @@ const Notifications = () => {
     setNotificationTypeValue("");
     setTitleValue("");
     setDescriptionValue("");
-    setDateValue("");
-    setTimeValue("");
     setImageFile(null);
     setImagePreview("");
-    setShowDateTime(true);
     setErrors({
       title: "",
       description: "",
-      date: "",
-      time: "",
       notificationType: "",
       userId: "",
       image: "",
@@ -269,6 +249,7 @@ const Notifications = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       let notification_image_url = "";
       if (imageFile) {
@@ -276,16 +257,18 @@ const Notifications = () => {
           await import("../../firebase/services");
         notification_image_url = await uploadImageToCloudinary(imageFile);
       }
+
+      const { date, time } = getCurrentDateTime();
+
       await addDoc(collection(db, "notifications"), {
         member_id: notificationTypeValue === "news" ? "all_users" : userIdValue,
         notification_type: notificationTypeValue,
         notification_image_url,
         title: titleValue,
         description: descriptionValue,
-        date: showDateTime ? dateValue : "",
-        time: showDateTime ? timeValue : "",
+        date: date,
+        time: time,
         created_at: Timestamp.now(),
-        has_date_time: showDateTime,
       });
       resetForm();
       setModalAddNotification(false);
@@ -294,6 +277,8 @@ const Notifications = () => {
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to add notification", "error");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -304,6 +289,7 @@ const Notifications = () => {
       return;
     }
 
+    setSubmitting(true);
     try {
       let notification_image_url =
         selectedNotification.notification_image_url || "";
@@ -312,15 +298,18 @@ const Notifications = () => {
           await import("../../firebase/services");
         notification_image_url = await uploadImageToCloudinary(imageFile);
       }
+
+      const { date, time } = getCurrentDateTime();
+
       await updateDoc(doc(db, "notifications", selectedNotification.id), {
         member_id: notificationTypeValue === "news" ? "all_users" : userIdValue,
         notification_type: notificationTypeValue,
         notification_image_url,
         title: titleValue,
         description: descriptionValue,
-        date: showDateTime ? dateValue : "",
-        time: showDateTime ? timeValue : "",
-        has_date_time: showDateTime,
+        date: date,
+        time: time,
+        updated_at: Timestamp.now(),
       });
       resetForm();
       setModalEditNotification(false);
@@ -329,11 +318,14 @@ const Notifications = () => {
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to update notification", "error");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleDelete() {
     if (!selectedNotification) return;
+    setSubmitting(true);
     try {
       await deleteDoc(doc(db, "notifications", selectedNotification.id));
       setModalDeleteNotification(false);
@@ -342,6 +334,8 @@ const Notifications = () => {
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to delete notification", "error");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -355,16 +349,11 @@ const Notifications = () => {
         ? ""
         : notification.member_id || "",
     );
-    setDateValue(notification.date || "");
-    setTimeValue(notification.time || "");
     setImagePreview(notification.notification_image_url || "");
     setImageFile(null);
-    setShowDateTime(notification.has_date_time !== false);
     setErrors({
       title: "",
       description: "",
-      date: "",
-      time: "",
       notificationType: "",
       userId: "",
       image: "",
@@ -385,16 +374,6 @@ const Notifications = () => {
     validateField("description", e.target.value);
   };
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDateValue(e.target.value);
-    if (showDateTime) validateField("date", e.target.value);
-  };
-
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTimeValue(e.target.value);
-    if (showDateTime) validateField("time", e.target.value);
-  };
-
   const handleNotificationTypeChange = (e: any) => {
     setNotificationTypeValue(e.target.value);
     setUserIdValue("");
@@ -404,21 +383,6 @@ const Notifications = () => {
   const handleUserIdChange = (e: any) => {
     setUserIdValue(e.target.value);
     validateField("userId", e.target.value);
-  };
-
-  const handleShowDateTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const checked = e.target.checked;
-    setShowDateTime(checked);
-    if (!checked) {
-      // Clear date and time validation errors when hidden
-      setDateValue("");
-      setTimeValue("");
-      setErrors((prev) => ({ ...prev, date: "", time: "" }));
-    } else {
-      // Re-validate if needed
-      if (dateValue) validateField("date", dateValue);
-      if (timeValue) validateField("time", timeValue);
-    }
   };
 
   const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
@@ -456,7 +420,11 @@ const Notifications = () => {
                   Admin
                 </h1>
               </div>
-              <img className="w-14 h-14" src={userImg} alt="" />
+              <img
+                className="w-14 h-14 rounded-full object-cover"
+                src={adminProfile?.image_url || noImg}
+                alt=""
+              />
             </div>
           </div>
 
@@ -543,7 +511,7 @@ const Notifications = () => {
             {/* Modal Add Notification */}
             <Dialog
               open={modalAddNotification}
-              onClose={() => setModalAddNotification(false)}
+              onClose={() => !submitting && setModalAddNotification(false)}
               fullWidth
             >
               <div className="modal_add_notification_block px-4 py-4">
@@ -551,7 +519,10 @@ const Notifications = () => {
                   <h1 className="text-[26px] font-600">Add Notification</h1>
                   <button
                     className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
-                    onClick={() => setModalAddNotification(false)}
+                    onClick={() =>
+                      !submitting && setModalAddNotification(false)
+                    }
+                    disabled={submitting}
                   >
                     <MdOutlineClose size={27} />
                   </button>
@@ -568,6 +539,7 @@ const Notifications = () => {
                           label="Type of Notification"
                           value={notificationTypeValue}
                           onChange={handleNotificationTypeChange}
+                          disabled={submitting}
                         >
                           <MenuItem value={""} sx={{ color: "gray" }}>
                             Select a type
@@ -593,6 +565,7 @@ const Notifications = () => {
                             label="Select the User"
                             value={userIdValue}
                             onChange={handleUserIdChange}
+                            disabled={submitting}
                           >
                             <MenuItem value={""} sx={{ color: "gray" }}>
                               Select a user
@@ -612,58 +585,6 @@ const Notifications = () => {
                       </div>
                     )}
 
-                    {/* Checkbox for Show Date and Time */}
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showDateTime}
-                          onChange={handleShowDateTimeChange}
-                          className="w-4 h-4 cursor-pointer"
-                        />
-                        <span className="text-[15px] font-500">
-                          Show Date and Time
-                        </span>
-                      </label>
-                    </div>
-
-                    {showDateTime && (
-                      <>
-                        <div className="flex flex-col gap-2">
-                          <label className="cursor-pointer text-[15px] font-500">
-                            Date *
-                          </label>
-                          <input
-                            type="date"
-                            className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.date ? "border-red-500" : "border-[#DFEAF2]"}`}
-                            value={dateValue}
-                            onChange={handleDateChange}
-                          />
-                          {errors.date && (
-                            <span className="text-xs text-red-500">
-                              {errors.date}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="cursor-pointer text-[15px] font-500">
-                            Time *
-                          </label>
-                          <input
-                            type="time"
-                            className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.time ? "border-red-500" : "border-[#DFEAF2]"}`}
-                            value={timeValue}
-                            onChange={handleTimeChange}
-                          />
-                          {errors.time && (
-                            <span className="text-xs text-red-500">
-                              {errors.time}
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    )}
-
                     <div className="label_input_title flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Title *
@@ -676,6 +597,7 @@ const Notifications = () => {
                         error={!!errors.title}
                         helperText={errors.title}
                         required
+                        disabled={submitting}
                       />
                     </div>
                     <div className="label_textarea_description flex flex-col gap-2">
@@ -687,6 +609,7 @@ const Notifications = () => {
                         onChange={handleDescriptionChange}
                         placeholder="Description"
                         className={`outline-none border-[3px] rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${errors.description ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        disabled={submitting}
                       ></textarea>
                       {errors.description && (
                         <span className="text-xs text-red-500">
@@ -713,6 +636,7 @@ const Notifications = () => {
                         accept="image/*"
                         className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.image ? "border-red-500" : "border-[#DFEAF2]"}`}
                         onChange={handleImageChange}
+                        disabled={submitting}
                       />
                       {errors.image && (
                         <span className="text-xs text-red-500">
@@ -723,9 +647,21 @@ const Notifications = () => {
                     <div className="btn_submit_block mt-2">
                       <button
                         onClick={handleAdd}
-                        className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full hover:bg-[#0d8ae0] transition-colors"
+                        disabled={submitting}
+                        className={`bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full transition-colors ${
+                          submitting
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-[#0d8ae0]"
+                        }`}
                       >
-                        Submit
+                        {submitting ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <CircularProgress size={24} color="primary" />
+                            <span>Submitting...</span>
+                          </div>
+                        ) : (
+                          "Submit"
+                        )}
                       </button>
                     </div>
                   </div>
@@ -736,7 +672,7 @@ const Notifications = () => {
             {/* Modal Edit Notification */}
             <Dialog
               open={modalEditNotification}
-              onClose={() => setModalEditNotification(false)}
+              onClose={() => !submitting && setModalEditNotification(false)}
               fullWidth
             >
               <div className="modal_edit_notification_block px-4 py-4">
@@ -744,7 +680,10 @@ const Notifications = () => {
                   <h1 className="text-[26px] font-600">Edit Notification</h1>
                   <button
                     className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
-                    onClick={() => setModalEditNotification(false)}
+                    onClick={() =>
+                      !submitting && setModalEditNotification(false)
+                    }
+                    disabled={submitting}
                   >
                     <MdOutlineClose size={27} />
                   </button>
@@ -761,6 +700,7 @@ const Notifications = () => {
                           label="Type of Notification"
                           value={notificationTypeValue}
                           onChange={handleNotificationTypeChange}
+                          disabled={submitting}
                         >
                           <MenuItem value={""} sx={{ color: "gray" }}>
                             Select a type
@@ -786,6 +726,7 @@ const Notifications = () => {
                             label="Select the User"
                             value={userIdValue}
                             onChange={handleUserIdChange}
+                            disabled={submitting}
                           >
                             <MenuItem value={""} sx={{ color: "gray" }}>
                               Select a user
@@ -805,58 +746,6 @@ const Notifications = () => {
                       </div>
                     )}
 
-                    {/* Checkbox for Show Date and Time */}
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={showDateTime}
-                          onChange={handleShowDateTimeChange}
-                          className="w-4 h-4 cursor-pointer"
-                        />
-                        <span className="text-[15px] font-500">
-                          Show Date and Time
-                        </span>
-                      </label>
-                    </div>
-
-                    {showDateTime && (
-                      <>
-                        <div className="flex flex-col gap-2">
-                          <label className="cursor-pointer text-[15px] font-500">
-                            Date *
-                          </label>
-                          <input
-                            type="date"
-                            className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.date ? "border-red-500" : "border-[#DFEAF2]"}`}
-                            value={dateValue}
-                            onChange={handleDateChange}
-                          />
-                          {errors.date && (
-                            <span className="text-xs text-red-500">
-                              {errors.date}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="cursor-pointer text-[15px] font-500">
-                            Time *
-                          </label>
-                          <input
-                            type="time"
-                            className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.time ? "border-red-500" : "border-[#DFEAF2]"}`}
-                            value={timeValue}
-                            onChange={handleTimeChange}
-                          />
-                          {errors.time && (
-                            <span className="text-xs text-red-500">
-                              {errors.time}
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    )}
-
                     <div className="label_input_title flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Title *
@@ -869,6 +758,7 @@ const Notifications = () => {
                         error={!!errors.title}
                         helperText={errors.title}
                         required
+                        disabled={submitting}
                       />
                     </div>
                     <div className="label_textarea_description flex flex-col gap-2">
@@ -880,6 +770,7 @@ const Notifications = () => {
                         onChange={handleDescriptionChange}
                         placeholder="Description"
                         className={`outline-none border-[3px] rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${errors.description ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        disabled={submitting}
                       ></textarea>
                       {errors.description && (
                         <span className="text-xs text-red-500">
@@ -906,6 +797,7 @@ const Notifications = () => {
                         accept="image/*"
                         className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.image ? "border-red-500" : "border-[#DFEAF2]"}`}
                         onChange={handleImageChange}
+                        disabled={submitting}
                       />
                       {errors.image && (
                         <span className="text-xs text-red-500">
@@ -916,9 +808,21 @@ const Notifications = () => {
                     <div className="btn_submit_block mt-2">
                       <button
                         onClick={handleEdit}
-                        className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full hover:bg-[#0d8ae0] transition-colors"
+                        disabled={submitting}
+                        className={`bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full transition-colors ${
+                          submitting
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-[#0d8ae0]"
+                        }`}
                       >
-                        Update
+                        {submitting ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <CircularProgress size={24} color="primary" />
+                            <span>Updating...</span>
+                          </div>
+                        ) : (
+                          "Update"
+                        )}
                       </button>
                     </div>
                   </div>
@@ -929,7 +833,7 @@ const Notifications = () => {
             {/* Modal Delete */}
             <Dialog
               open={modalDeleteNotification}
-              onClose={() => setModalDeleteNotification(false)}
+              onClose={() => !submitting && setModalDeleteNotification(false)}
               fullWidth
             >
               <div className="modal_delete_notification_block px-4 py-4">
@@ -937,7 +841,10 @@ const Notifications = () => {
                   <h1 className="text-[17px] font-600">Delete Notification</h1>
                   <button
                     className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
-                    onClick={() => setModalDeleteNotification(false)}
+                    onClick={() =>
+                      !submitting && setModalDeleteNotification(false)
+                    }
+                    disabled={submitting}
                   >
                     <MdOutlineClose size={27} />
                   </button>
@@ -950,15 +857,26 @@ const Notifications = () => {
                 <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                   <button
                     className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                    onClick={() => setModalDeleteNotification(false)}
+                    onClick={() =>
+                      !submitting && setModalDeleteNotification(false)
+                    }
+                    disabled={submitting}
                   >
                     No
                   </button>
                   <button
                     className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
                     onClick={handleDelete}
+                    disabled={submitting}
                   >
-                    Yes
+                    {submitting ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <CircularProgress size={20} color="primary" />
+                        <span>Deleting...</span>
+                      </div>
+                    ) : (
+                      "Yes"
+                    )}
                   </button>
                 </div>
               </div>
