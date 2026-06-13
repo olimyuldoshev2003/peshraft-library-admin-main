@@ -2,7 +2,7 @@ import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
 import TuneIcon from "@mui/icons-material/Tune";
 import { LuPlus } from "react-icons/lu";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { alpha, styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
@@ -66,9 +66,11 @@ const Books = () => {
   );
   const [newFilterName, setNewFilterName] = useState("");
   const [editFilterName, setEditFilterName] = useState("");
-  // const [books, setBooks] = useState<any[]>([]);
-  const [allBooks, setAllBooks] = useState<any[]>([]); // Store all books for filtering
+  const [allBooks, setAllBooks] = useState<any[]>([]);
   const [searchInpValue, setSearchInpValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [isFiltering, setIsFiltering] = useState(false);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [filtersOrCategories, setFiltersOrCategories] = useState<any[]>([]);
@@ -77,7 +79,11 @@ const Books = () => {
 
   // New state for selected filters
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]); // For modal temp selection
+  const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]);
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<any>(null);
+  const filterTimeoutRef = useRef<any>(null);
 
   // Validation errors for filters
   const [filterErrors, setFilterErrors] = useState({
@@ -109,6 +115,60 @@ const Books = () => {
       open: false,
     });
   };
+
+  // Debounced search handler - spinner only shows AFTER debounce
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInpValue(value);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Only show spinner when actually processing the search
+      setIsSearching(true);
+      setDebouncedSearchValue(value);
+      setPage(0);
+
+      // Hide spinner after a short delay (simulating processing time)
+      setTimeout(() => setIsSearching(false), 300);
+    }, 500);
+  }, []);
+
+  // Filter handler with loading indicator
+  const applyFiltersWithLoading = useCallback(() => {
+    setIsFiltering(true);
+    setSelectedFilters(tempSelectedFilters);
+    setModalFilter(false);
+    setModalShowAllFilters(false);
+    showScrollbar();
+    showSnackbar(`Applied ${tempSelectedFilters.length} filter(s)`, "success");
+
+    if (filterTimeoutRef.current) {
+      clearTimeout(filterTimeoutRef.current);
+    }
+
+    filterTimeoutRef.current = setTimeout(() => {
+      setIsFiltering(false);
+    }, 500);
+  }, [tempSelectedFilters]);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      if (filterTimeoutRef.current) {
+        clearTimeout(filterTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Reset page when filters or search changes
+  useEffect(() => {
+    setPage(0);
+  }, [selectedFilters, debouncedSearchValue]);
 
   // Validate filter name
   const validateFilterName = (name: string, isEdit: boolean = false) => {
@@ -157,7 +217,6 @@ const Books = () => {
       return false;
     }
 
-    // Check for duplicate filter name
     const isDuplicate = filtersOrCategories.some(
       (cat) =>
         cat.filterName.toLowerCase() === name.trim().toLowerCase() &&
@@ -220,16 +279,16 @@ const Books = () => {
 
   // Apply search filter on top of category filter
   const searchedAndFilteredBooks = useMemo(() => {
-    if (!searchInpValue.trim()) {
+    if (!debouncedSearchValue.trim()) {
       return filteredBooks;
     }
-    const lowerSearch = searchInpValue.toLowerCase();
+    const lowerSearch = debouncedSearchValue.toLowerCase();
     return filteredBooks.filter(
       (book) =>
         book.title?.toLowerCase().includes(lowerSearch) ||
         book.author?.toLowerCase().includes(lowerSearch),
     );
-  }, [filteredBooks, searchInpValue]);
+  }, [filteredBooks, debouncedSearchValue]);
 
   const visibleRows = useMemo(
     () =>
@@ -335,7 +394,6 @@ const Books = () => {
     try {
       const data = await getBooks("");
       setAllBooks(data);
-      // setBooks(data);
     } catch (error) {
       console.error(error);
       showSnackbar("Failed to load books", "error");
@@ -365,11 +423,6 @@ const Books = () => {
     loadBooks();
   }, []);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(0);
-  }, [selectedFilters, searchInpValue]);
-
   async function handleDeleteBook() {
     if (!selectedBookId) return;
     setLoadingAction(true);
@@ -377,7 +430,7 @@ const Books = () => {
       await deleteBook(selectedBookId);
       setModalDeleteBook(false);
       setSelectedBookId(null);
-      loadBooks();
+      await loadBooks();
       showSnackbar("Book deleted successfully!", "success");
     } catch (error) {
       console.error(error);
@@ -398,7 +451,7 @@ const Books = () => {
       await addCategory(newFilterName.trim());
       setModalFilterAdd(false);
       setNewFilterName("");
-      loadCategories();
+      await loadCategories();
       showSnackbar("Filter added successfully!", "success");
     } catch (error) {
       showSnackbar("Error adding filter", "error");
@@ -421,7 +474,7 @@ const Books = () => {
       setModalFilterEdit(false);
       setSelectedCategoryId(null);
       setEditFilterName("");
-      loadCategories();
+      await loadCategories();
       showSnackbar("Filter updated successfully!", "success");
     } catch (error) {
       showSnackbar("Error updating filter", "error");
@@ -437,7 +490,7 @@ const Books = () => {
       await deleteCategory(selectedCategoryId);
       setModalFilterDelete(false);
       setSelectedCategoryId(null);
-      loadCategories();
+      await loadCategories();
       showSnackbar("Filter deleted successfully!", "success");
     } catch (error) {
       showSnackbar("Error deleting filter", "error");
@@ -446,7 +499,6 @@ const Books = () => {
     }
   }
 
-  // Handle filter checkbox change in modal
   const handleFilterChange = (categoryName: string, checked: boolean) => {
     if (checked) {
       setTempSelectedFilters([...tempSelectedFilters, categoryName]);
@@ -457,23 +509,18 @@ const Books = () => {
     }
   };
 
-  // Apply filters from modal
   const applyFilters = () => {
-    setSelectedFilters(tempSelectedFilters);
-    setModalFilter(false);
-    setModalShowAllFilters(false);
-    showScrollbar();
-    showSnackbar(`Applied ${tempSelectedFilters.length} filter(s)`, "success");
+    applyFiltersWithLoading();
   };
 
-  // Clear all filters
   const clearFilters = () => {
+    setIsFiltering(true);
     setSelectedFilters([]);
     setTempSelectedFilters([]);
     showSnackbar("All filters cleared", "info");
+    setTimeout(() => setIsFiltering(false), 300);
   };
 
-  // Open filter modal and sync temp filters with current selected filters
   const openFilterModal = () => {
     setTempSelectedFilters([...selectedFilters]);
     setModalFilter(true);
@@ -542,18 +589,28 @@ const Books = () => {
           Books{" "}
           {selectedFilters.length > 0 &&
             `(Filtered: ${selectedFilters.length} categor${selectedFilters.length > 1 ? "ies" : "y"})`}
+          {(isSearching || isFiltering) && " (Loading...)"}
+          {!isSearching &&
+            !isFiltering &&
+            debouncedSearchValue &&
+            searchedAndFilteredBooks.length > 0 &&
+            ` (${searchedAndFilteredBooks.length} result${searchedAndFilteredBooks.length !== 1 ? "s" : ""})`}
         </Typography>
         {selectedFilters.length > 0 && (
           <button
             onClick={clearFilters}
             className="text-red-500 hover:text-red-700 text-sm px-3 py-1 rounded border border-red-300 hover:border-red-500 transition-colors cursor-pointer"
+            disabled={isFiltering}
           >
-            Clear Filters
+            {isFiltering ? "Clearing..." : "Clear Filters"}
           </button>
         )}
       </Toolbar>
     );
   }
+
+  // Show backdrop when searching or filtering
+  const showBackdrop = loadingBooks || isSearching || isFiltering;
 
   return (
     <>
@@ -566,12 +623,13 @@ const Books = () => {
               className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
               placeholder="Search by title or author..."
               value={searchInpValue}
-              onChange={(e) => setSearchInpValue(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
             <div className="btn_filter_and_modal_filter_overlay_transparent_block md:relative flex flex-col">
               <button
                 className="icons_filter_block shadow-[0_0_6px_gray] flex justify-center items-center p-2 rounded-[10px] cursor-pointer relative"
                 onClick={openFilterModal}
+                disabled={isFiltering}
               >
                 <TuneIcon sx={{ fontSize: "26px" }} />
                 {selectedFilters.length > 0 && (
@@ -947,17 +1005,24 @@ const Books = () => {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {!loadingBooks && searchedAndFilteredBooks.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={8}>
-                          <h1 className="text-center py-4 text-gray-400">
-                            {allBooks.length === 0
-                              ? "No books found. Add your first book!"
-                              : "No books match the selected filters"}
-                          </h1>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                    {!loadingBooks &&
+                      !isSearching &&
+                      !isFiltering &&
+                      searchedAndFilteredBooks.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8}>
+                            <h1 className="text-center py-4 text-gray-400">
+                              {allBooks.length === 0
+                                ? "No books found. Add your first book!"
+                                : debouncedSearchValue
+                                  ? `No books found matching "${debouncedSearchValue}"`
+                                  : selectedFilters.length > 0
+                                    ? "No books match the selected filters"
+                                    : "No books found"}
+                            </h1>
+                          </TableCell>
+                        </TableRow>
+                      )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -1180,9 +1245,10 @@ const Books = () => {
         </Dialog>
       </div>
 
+      {/* Loading Backdrop - shows for initial load, search, and filter */}
       <Backdrop
         sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
-        open={loadingBooks}
+        open={showBackdrop}
       >
         <CircularProgress color="inherit" />
       </Backdrop>

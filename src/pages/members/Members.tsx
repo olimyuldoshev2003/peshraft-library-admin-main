@@ -2,7 +2,7 @@ import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
 import { BsThreeDots } from "react-icons/bs";
 import { alpha } from "@mui/material/styles";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -145,14 +145,43 @@ const Members = () => {
     useState<boolean>(false);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
-  
+  const [loadingModal, setLoadingModal] = useState(false);
+
   const [bookshelf, setBookshelf] = useState<any[]>([]);
-  console.log(bookshelf);
   const [history, setHistory] = useState<any[]>([]);
-  console.log(history);
-  
+
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<any>(null);
+
+  // Debounced search handler - spinner shows ONLY after debounce
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchValue(value);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
+      setDebouncedSearchValue(value);
+      setPage(0);
+      setTimeout(() => setIsSearching(false), 300);
+    }, 500);
+  }, []);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     loadMembers();
@@ -173,6 +202,7 @@ const Members = () => {
   async function openMemberModal(member: any) {
     setSelectedMember(member);
     setModalInfoAboutMember(true);
+    setLoadingModal(true);
     try {
       const [shelf, hist] = await Promise.all([
         getMemberBookshelf(member.id),
@@ -182,18 +212,24 @@ const Members = () => {
       setHistory(hist);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingModal(false);
     }
   }
 
+  // Filter members based on debounced search
   const filteredMembers = useMemo(() => {
-    const lower = searchValue.toLowerCase();
+    if (!debouncedSearchValue.trim()) {
+      return members;
+    }
+    const lower = debouncedSearchValue.toLowerCase();
     return members.filter(
       (m) =>
         m.fullName?.toLowerCase().includes(lower) ||
         m.email?.toLowerCase().includes(lower) ||
         m.phoneNumber?.toLowerCase().includes(lower),
     );
-  }, [members, searchValue]);
+  }, [members, debouncedSearchValue]);
 
   function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
     if (b[orderBy] < a[orderBy]) return -1;
@@ -296,6 +332,11 @@ const Members = () => {
           component="div"
         >
           Members
+          {isSearching && " (Searching...)"}
+          {!isSearching &&
+            debouncedSearchValue &&
+            filteredMembers.length > 0 &&
+            ` (${filteredMembers.length} result${filteredMembers.length !== 1 ? "s" : ""})`}
         </Typography>
       </Toolbar>
     );
@@ -336,6 +377,9 @@ const Members = () => {
     [filteredMembers, order, orderBy, page, rowsPerPage],
   );
 
+  // Show the same spinner when loading OR searching
+  const showSpinner = loading || isSearching;
+
   return (
     <>
       <div className="members_component">
@@ -346,7 +390,7 @@ const Members = () => {
               <input
                 type="search"
                 value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
                 placeholder="Search members..."
               />
@@ -369,7 +413,7 @@ const Members = () => {
           </div>
 
           <div className="section_member_component mt-6">
-            {loading ? (
+            {showSpinner ? (
               <div className="flex justify-center py-10">
                 <CircularProgress />
               </div>
@@ -440,7 +484,9 @@ const Members = () => {
                             align="center"
                             sx={{ py: 4, color: "gray" }}
                           >
-                            No members found
+                            {debouncedSearchValue
+                              ? `No members found matching "${debouncedSearchValue}"`
+                              : "No members found"}
                           </TableCell>
                         </TableRow>
                       )}
@@ -537,7 +583,11 @@ const Members = () => {
                       Bookshelf
                     </h1>
                     <div className="bookshelf_block p-3 h-47 overflow-auto flex flex-col gap-3 border-b-2 border-b-[#D9D9D9] w-full">
-                      {bookshelf.length === 0 ? (
+                      {loadingModal ? (
+                        <div className="flex justify-center py-4">
+                          <CircularProgress size={24} />
+                        </div>
+                      ) : bookshelf.length === 0 ? (
                         <p className="text-gray-400 text-center py-4">
                           No books currently borrowed
                         </p>
@@ -587,7 +637,11 @@ const Members = () => {
                       History Book
                     </h1>
                     <div className="history_book_block p-3 h-47 overflow-auto flex flex-col gap-3 border-b-2 border-b-[#D9D9D9]">
-                      {history.length === 0 ? (
+                      {loadingModal ? (
+                        <div className="flex justify-center py-4">
+                          <CircularProgress size={24} />
+                        </div>
+                      ) : history.length === 0 ? (
                         <p className="text-gray-400 text-center py-4">
                           No history yet
                         </p>

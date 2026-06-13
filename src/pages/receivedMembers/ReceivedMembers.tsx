@@ -1,6 +1,6 @@
 import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
@@ -139,8 +139,38 @@ const ReceivedMembers = () => {
   const [modalDeleteReceivedUser, setModalDeleteReceivedUser] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [selectedId, setSelectedId] = useState<string>("");
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<any>(null);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchValue(value);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
+      setDebouncedSearchValue(value);
+      setPage(0);
+      setTimeout(() => setIsSearching(false), 300);
+    }, 500);
+  }, []);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -170,14 +200,17 @@ const ReceivedMembers = () => {
   }
 
   const filteredRows = useMemo(() => {
-    const lower = searchValue.toLowerCase();
+    if (!debouncedSearchValue.trim()) {
+      return rows;
+    }
+    const lower = debouncedSearchValue.toLowerCase();
     return rows.filter(
       (r) =>
         r.borrowerName?.toLowerCase().includes(lower) ||
         r.bookTitle?.toLowerCase().includes(lower) ||
         r.email?.toLowerCase().includes(lower),
     );
-  }, [rows, searchValue]);
+  }, [rows, debouncedSearchValue]);
 
   function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
     if (b[orderBy] < a[orderBy]) return -1;
@@ -283,6 +316,11 @@ const ReceivedMembers = () => {
           component="div"
         >
           Received Members
+          {isSearching && " (Searching...)"}
+          {!isSearching &&
+            debouncedSearchValue &&
+            filteredRows.length > 0 &&
+            ` (${filteredRows.length} result${filteredRows.length !== 1 ? "s" : ""})`}
         </Typography>
       </Toolbar>
     );
@@ -320,6 +358,9 @@ const ReceivedMembers = () => {
     [filteredRows, order, orderBy, page, rowsPerPage],
   );
 
+  // Show spinner when loading OR searching
+  const showSpinner = loading || isSearching;
+
   return (
     <>
       <div className="borrowed_books_component">
@@ -330,7 +371,7 @@ const ReceivedMembers = () => {
               <input
                 type="search"
                 value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
                 placeholder="Search..."
               />
@@ -354,7 +395,7 @@ const ReceivedMembers = () => {
 
           <div className="section_borrowed_books">
             <div className="table_books mt-6">
-              {loading ? (
+              {showSpinner ? (
                 <div className="flex justify-center py-10">
                   <CircularProgress />
                 </div>
@@ -439,14 +480,16 @@ const ReceivedMembers = () => {
                             </TableRow>
                           );
                         })}
-                        {filteredRows.length === 0 && (
+                        {!isSearching && filteredRows.length === 0 && (
                           <TableRow>
                             <TableCell
                               colSpan={10}
                               align="center"
                               sx={{ py: 4, color: "gray" }}
                             >
-                              No received members found
+                              {debouncedSearchValue
+                                ? `No received members found matching "${debouncedSearchValue}"`
+                                : "No received members found"}
                             </TableCell>
                           </TableRow>
                         )}
