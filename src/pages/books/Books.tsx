@@ -2,7 +2,7 @@ import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
 import TuneIcon from "@mui/icons-material/Tune";
 import { LuPlus } from "react-icons/lu";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { alpha, styled } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
@@ -66,18 +66,22 @@ const Books = () => {
   );
   const [newFilterName, setNewFilterName] = useState("");
   const [editFilterName, setEditFilterName] = useState("");
-  // const [books, setBooks] = useState<any[]>([]);
-  const [allBooks, setAllBooks] = useState<any[]>([]); // Store all books for filtering
+  const [allBooks, setAllBooks] = useState<any[]>([]);
   const [searchInpValue, setSearchInpValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [filtersOrCategories, setFiltersOrCategories] = useState<any[]>([]);
   const [loadingFiltersOrCategories, setLoadingFiltersOrCategories] =
     useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   // New state for selected filters
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]); // For modal temp selection
+  const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]);
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Validation errors for filters
   const [filterErrors, setFilterErrors] = useState({
@@ -109,6 +113,30 @@ const Books = () => {
       open: false,
     });
   };
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInpValue(value);
+    setIsSearching(true);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchValue(value);
+      setIsSearching(false);
+    }, 500);
+  }, []);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Validate filter name
   const validateFilterName = (name: string, isEdit: boolean = false) => {
@@ -157,7 +185,6 @@ const Books = () => {
       return false;
     }
 
-    // Check for duplicate filter name
     const isDuplicate = filtersOrCategories.some(
       (cat) =>
         cat.filterName.toLowerCase() === name.trim().toLowerCase() &&
@@ -220,16 +247,16 @@ const Books = () => {
 
   // Apply search filter on top of category filter
   const searchedAndFilteredBooks = useMemo(() => {
-    if (!searchInpValue.trim()) {
+    if (!debouncedSearchValue.trim()) {
       return filteredBooks;
     }
-    const lowerSearch = searchInpValue.toLowerCase();
+    const lowerSearch = debouncedSearchValue.toLowerCase();
     return filteredBooks.filter(
       (book) =>
         book.title?.toLowerCase().includes(lowerSearch) ||
         book.author?.toLowerCase().includes(lowerSearch),
     );
-  }, [filteredBooks, searchInpValue]);
+  }, [filteredBooks, debouncedSearchValue]);
 
   const visibleRows = useMemo(
     () =>
@@ -335,7 +362,6 @@ const Books = () => {
     try {
       const data = await getBooks("");
       setAllBooks(data);
-      // setBooks(data);
     } catch (error) {
       console.error(error);
       showSnackbar("Failed to load books", "error");
@@ -365,10 +391,10 @@ const Books = () => {
     loadBooks();
   }, []);
 
-  // Reset page when filters change
+  // Reset page when filters or search changes
   useEffect(() => {
     setPage(0);
-  }, [selectedFilters, searchInpValue]);
+  }, [selectedFilters, debouncedSearchValue]);
 
   async function handleDeleteBook() {
     if (!selectedBookId) return;
@@ -446,7 +472,6 @@ const Books = () => {
     }
   }
 
-  // Handle filter checkbox change in modal
   const handleFilterChange = (categoryName: string, checked: boolean) => {
     if (checked) {
       setTempSelectedFilters([...tempSelectedFilters, categoryName]);
@@ -457,7 +482,6 @@ const Books = () => {
     }
   };
 
-  // Apply filters from modal
   const applyFilters = () => {
     setSelectedFilters(tempSelectedFilters);
     setModalFilter(false);
@@ -466,14 +490,12 @@ const Books = () => {
     showSnackbar(`Applied ${tempSelectedFilters.length} filter(s)`, "success");
   };
 
-  // Clear all filters
   const clearFilters = () => {
     setSelectedFilters([]);
     setTempSelectedFilters([]);
     showSnackbar("All filters cleared", "info");
   };
 
-  // Open filter modal and sync temp filters with current selected filters
   const openFilterModal = () => {
     setTempSelectedFilters([...selectedFilters]);
     setModalFilter(true);
@@ -542,6 +564,11 @@ const Books = () => {
           Books{" "}
           {selectedFilters.length > 0 &&
             `(Filtered: ${selectedFilters.length} categor${selectedFilters.length > 1 ? "ies" : "y"})`}
+          {isSearching && " (Searching...)"}
+          {!isSearching &&
+            debouncedSearchValue &&
+            searchedAndFilteredBooks.length > 0 &&
+            ` (${searchedAndFilteredBooks.length} result${searchedAndFilteredBooks.length !== 1 ? "s" : ""})`}
         </Typography>
         {selectedFilters.length > 0 && (
           <button
@@ -566,8 +593,13 @@ const Books = () => {
               className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
               placeholder="Search by title or author..."
               value={searchInpValue}
-              onChange={(e) => setSearchInpValue(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
+            {isSearching && (
+              <div className="absolute right-4 top-2.5">
+                <CircularProgress size={20} />
+              </div>
+            )}
             <div className="btn_filter_and_modal_filter_overlay_transparent_block md:relative flex flex-col">
               <button
                 className="icons_filter_block shadow-[0_0_6px_gray] flex justify-center items-center p-2 rounded-[10px] cursor-pointer relative"
@@ -897,63 +929,79 @@ const Books = () => {
                     rowCount={searchedAndFilteredBooks.length}
                   />
                   <TableBody>
-                    {visibleRows.map((book: any, index: number) => (
-                      <TableRow
-                        hover
-                        role="checkbox"
-                        tabIndex={-1}
-                        key={book.id}
-                      >
-                        <TableCell>
-                          <img
-                            src={book.image_url || "/no-img.jpg"}
-                            className="min-w-10 h-10 rounded-full object-cover"
-                            alt="Book cover"
-                          />
-                        </TableCell>
-                        <TableCell
-                          component="th"
-                          id={`row-${index}`}
-                          scope="row"
-                          padding="none"
-                        >
-                          {book.title}
-                        </TableCell>
-                        <TableCell>{book.author}</TableCell>
-                        <TableCell>{book.category}</TableCell>
-                        <TableCell>{book.bookPage || book.book_page}</TableCell>
-                        <TableCell>{book.year}</TableCell>
-                        <TableCell>{book.available_copies}</TableCell>
-                        <TableCell>
-                          <div className="btn_func_block flex items-center gap-1.5">
-                            <AiFillEdit
-                              size={27}
-                              className="cursor-pointer text-blue-600 hover:text-blue-800 duration-100"
-                              onClick={() =>
-                                navigate(`/dashboard/edit-book`, {
-                                  state: { bookId: book.id },
-                                })
-                              }
-                            />
-                            <MdDelete
-                              size={27}
-                              className="cursor-pointer text-red-500 hover:text-red-600 duration-100"
-                              onClick={() => {
-                                setSelectedBookId(book.id);
-                                setModalDeleteBook(true);
-                              }}
-                            />
+                    {loadingBooks ? (
+                      <TableRow>
+                        <TableCell colSpan={8} align="center">
+                          <div className="flex justify-center py-10">
+                            <CircularProgress />
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      visibleRows.map((book: any, index: number) => (
+                        <TableRow
+                          hover
+                          role="checkbox"
+                          tabIndex={-1}
+                          key={book.id}
+                        >
+                          <TableCell>
+                            <img
+                              src={book.image_url || "/no-img.jpg"}
+                              className="min-w-10 h-10 rounded-full object-cover"
+                              alt="Book cover"
+                            />
+                          </TableCell>
+                          <TableCell
+                            component="th"
+                            id={`row-${index}`}
+                            scope="row"
+                            padding="none"
+                          >
+                            {book.title}
+                          </TableCell>
+                          <TableCell>{book.author}</TableCell>
+                          <TableCell>{book.category}</TableCell>
+                          <TableCell>
+                            {book.bookPage || book.book_page}
+                          </TableCell>
+                          <TableCell>{book.year}</TableCell>
+                          <TableCell>{book.available_copies}</TableCell>
+                          <TableCell>
+                            <div className="btn_func_block flex items-center gap-1.5">
+                              <AiFillEdit
+                                size={27}
+                                className="cursor-pointer text-blue-600 hover:text-blue-800 duration-100"
+                                onClick={() =>
+                                  navigate(`/dashboard/edit-book`, {
+                                    state: { bookId: book.id },
+                                  })
+                                }
+                              />
+                              <MdDelete
+                                size={27}
+                                className="cursor-pointer text-red-500 hover:text-red-600 duration-100"
+                                onClick={() => {
+                                  setSelectedBookId(book.id);
+                                  setModalDeleteBook(true);
+                                }}
+                              />
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                     {!loadingBooks && searchedAndFilteredBooks.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={8}>
                           <h1 className="text-center py-4 text-gray-400">
                             {allBooks.length === 0
                               ? "No books found. Add your first book!"
-                              : "No books match the selected filters"}
+                              : debouncedSearchValue
+                                ? `No books found matching "${debouncedSearchValue}"`
+                                : selectedFilters.length > 0
+                                  ? "No books match the selected filters"
+                                  : "No books found"}
                           </h1>
                         </TableCell>
                       </TableRow>

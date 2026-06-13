@@ -41,6 +41,8 @@ const Notifications = () => {
   const [modalDeleteNotification, setModalDeleteNotification] =
     useState<boolean>(false);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [allNotifications, setAllNotifications] = useState<any[]>([]); // Store all notifications for searching
+  const [searchInpValue, setSearchInpValue] = useState("");
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false); // For add/edit button loading
@@ -98,7 +100,9 @@ const Notifications = () => {
     setLoading(true);
     try {
       const snap = await getDocs(collection(db, "notifications"));
-      setNotifications(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const data = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      setAllNotifications(data);
+      setNotifications(data);
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to load notifications", "error");
@@ -115,6 +119,23 @@ const Notifications = () => {
       console.error(err);
     }
   }
+
+  // Filter notifications based on search input
+  useEffect(() => {
+    if (!searchInpValue.trim()) {
+      setNotifications(allNotifications);
+    } else {
+      const lowerSearch = searchInpValue.toLowerCase();
+      const filtered = allNotifications.filter(
+        (notification) =>
+          notification.title?.toLowerCase().includes(lowerSearch) ||
+          notification.description?.toLowerCase().includes(lowerSearch) ||
+          notification.notification_type?.toLowerCase().includes(lowerSearch),
+      );
+      setNotifications(filtered);
+      setPage(0); // Reset to first page when search results change
+    }
+  }, [searchInpValue, allNotifications]);
 
   // Validate single field
   const validateField = (name: string, value: any, isEdit: boolean = false) => {
@@ -408,7 +429,9 @@ const Notifications = () => {
               <input
                 type="search"
                 className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
-                placeholder="Search enter..."
+                placeholder="Search by title, description or type..."
+                value={searchInpValue}
+                onChange={(e) => setSearchInpValue(e.target.value)}
               />
             </div>
             <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
@@ -432,10 +455,21 @@ const Notifications = () => {
             <div className="title_and_btn_add_notifications_block flex justify-between items-center gap-2">
               <h1 className="title_notitfications text-[24px] font-medium">
                 Notifications
+                {searchInpValue && notifications.length === 0 && (
+                  <span className="text-sm text-gray-400 ml-2">
+                    (No results found for "{searchInpValue}")
+                  </span>
+                )}
+                {searchInpValue && notifications.length > 0 && (
+                  <span className="text-sm text-gray-400 ml-2">
+                    ({notifications.length} result
+                    {notifications.length !== 1 ? "s" : ""})
+                  </span>
+                )}
               </h1>
               <div className="btn_add_block flex justify-between items-center gap-6">
                 <button
-                  className="flex items-center gap-2 bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer"
+                  className="flex items-center gap-2 bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer hover:bg-[#0d8ae0] transition-colors"
                   onClick={() => {
                     resetForm();
                     setModalAddNotification(true);
@@ -455,14 +489,15 @@ const Notifications = () => {
               <div className="notifications_block mt-6 flex flex-col gap-3">
                 {visibleNotifications.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">
-                    No notifications yet. Click "Add Notification" to create
-                    one.
+                    {searchInpValue
+                      ? `No notifications found matching "${searchInpValue}"`
+                      : "No notifications yet. Click 'Add Notification' to create one."}
                   </p>
                 ) : (
                   visibleNotifications.map((notification: any) => (
                     <div
                       key={notification.id}
-                      className="notification_container flex justify-between gap-5 shadow-[0_0_6px_gray] rounded-xl p-2"
+                      className="notification_container flex justify-between gap-5 shadow-[0_0_6px_gray] rounded-xl p-2 hover:shadow-[0_0_10px_gray] transition-shadow"
                     >
                       <div className="title_and_description_block">
                         <h1 className="title_notification text-[16px] font-bold">
@@ -496,17 +531,19 @@ const Notifications = () => {
               </div>
             )}
 
-            <div className="pagination_notfications">
-              <TablePagination
-                rowsPerPageOptions={[17, 10, 8, 5]}
-                component="div"
-                count={notifications.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-              />
-            </div>
+            {notifications.length > 0 && (
+              <div className="pagination_notfications">
+                <TablePagination
+                  rowsPerPageOptions={[17, 10, 8, 5]}
+                  component="div"
+                  count={notifications.length}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+              </div>
+            )}
 
             {/* Modal Add Notification */}
             <Dialog
@@ -518,7 +555,7 @@ const Notifications = () => {
                 <div className="header_modal_add_notification flex items-center gap-6 justify-between">
                   <h1 className="text-[26px] font-600">Add Notification</h1>
                   <button
-                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
                     onClick={() =>
                       !submitting && setModalAddNotification(false)
                     }
@@ -528,7 +565,7 @@ const Notifications = () => {
                   </button>
                 </div>
                 <div className="section_modal_add_notification">
-                  <div className="form flex flex-col gap-2">
+                  <div className="form flex flex-col gap-3">
                     <div className="label_select_notification_type flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Notification Type *
@@ -598,6 +635,7 @@ const Notifications = () => {
                         helperText={errors.title}
                         required
                         disabled={submitting}
+                        fullWidth
                       />
                     </div>
                     <div className="label_textarea_description flex flex-col gap-2">
@@ -608,7 +646,11 @@ const Notifications = () => {
                         value={descriptionValue}
                         onChange={handleDescriptionChange}
                         placeholder="Description"
-                        className={`outline-none border-[3px] rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${errors.description ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        className={`outline-none border-2 rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${
+                          errors.description
+                            ? "border-red-500"
+                            : "border-[#DFEAF2]"
+                        }`}
                         disabled={submitting}
                       ></textarea>
                       {errors.description && (
@@ -628,16 +670,21 @@ const Notifications = () => {
                         <img
                           src={imagePreview}
                           className="w-20 h-20 object-cover rounded-lg"
-                          alt=""
+                          alt="Preview"
                         />
                       )}
                       <input
                         type="file"
                         accept="image/*"
-                        className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.image ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        className={`outline-none border-2 rounded-[10px] p-2 cursor-pointer ${
+                          errors.image ? "border-red-500" : "border-[#DFEAF2]"
+                        }`}
                         onChange={handleImageChange}
                         disabled={submitting}
                       />
+                      <span className="text-xs text-gray-400">
+                        Max size: 5MB (JPG, PNG, GIF)
+                      </span>
                       {errors.image && (
                         <span className="text-xs text-red-500">
                           {errors.image}
@@ -656,7 +703,7 @@ const Notifications = () => {
                       >
                         {submitting ? (
                           <div className="flex items-center justify-center gap-2">
-                            <CircularProgress size={24} color="primary" />
+                            <CircularProgress size={24} color="inherit" />
                             <span>Submitting...</span>
                           </div>
                         ) : (
@@ -679,7 +726,7 @@ const Notifications = () => {
                 <div className="header_modal_edit_notification flex items-center gap-6 justify-between">
                   <h1 className="text-[26px] font-600">Edit Notification</h1>
                   <button
-                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
                     onClick={() =>
                       !submitting && setModalEditNotification(false)
                     }
@@ -689,7 +736,7 @@ const Notifications = () => {
                   </button>
                 </div>
                 <div className="section_modal_edit_notification">
-                  <div className="form flex flex-col gap-2">
+                  <div className="form flex flex-col gap-3">
                     <div className="label_select_notification_type flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Notification Type *
@@ -759,6 +806,7 @@ const Notifications = () => {
                         helperText={errors.title}
                         required
                         disabled={submitting}
+                        fullWidth
                       />
                     </div>
                     <div className="label_textarea_description flex flex-col gap-2">
@@ -769,7 +817,11 @@ const Notifications = () => {
                         value={descriptionValue}
                         onChange={handleDescriptionChange}
                         placeholder="Description"
-                        className={`outline-none border-[3px] rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${errors.description ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        className={`outline-none border-2 rounded-[15px] p-3 h-40 resize-none focus:border-[#20ACFF] transition-colors ${
+                          errors.description
+                            ? "border-red-500"
+                            : "border-[#DFEAF2]"
+                        }`}
                         disabled={submitting}
                       ></textarea>
                       {errors.description && (
@@ -789,16 +841,21 @@ const Notifications = () => {
                         <img
                           src={imagePreview}
                           className="w-20 h-20 object-cover rounded-lg"
-                          alt=""
+                          alt="Preview"
                         />
                       )}
                       <input
                         type="file"
                         accept="image/*"
-                        className={`outline-none border-[3px] rounded-[10px] p-2 ${errors.image ? "border-red-500" : "border-[#DFEAF2]"}`}
+                        className={`outline-none border-2 rounded-[10px] p-2 cursor-pointer ${
+                          errors.image ? "border-red-500" : "border-[#DFEAF2]"
+                        }`}
                         onChange={handleImageChange}
                         disabled={submitting}
                       />
+                      <span className="text-xs text-gray-400">
+                        Max size: 5MB (upload new to replace current)
+                      </span>
                       {errors.image && (
                         <span className="text-xs text-red-500">
                           {errors.image}
@@ -817,7 +874,7 @@ const Notifications = () => {
                       >
                         {submitting ? (
                           <div className="flex items-center justify-center gap-2">
-                            <CircularProgress size={24} color="primary" />
+                            <CircularProgress size={24} color="inherit" />
                             <span>Updating...</span>
                           </div>
                         ) : (
@@ -840,7 +897,7 @@ const Notifications = () => {
                 <div className="header_delete_notification_block flex items-center gap-6 justify-between">
                   <h1 className="text-[17px] font-600">Delete Notification</h1>
                   <button
-                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
                     onClick={() =>
                       !submitting && setModalDeleteNotification(false)
                     }
@@ -849,33 +906,32 @@ const Notifications = () => {
                     <MdOutlineClose size={27} />
                   </button>
                 </div>
-                <DialogTitle sx={{ fontSize: 15 }}>
-                  {
-                    "Are you sure to delete this notification? This action can't be undone"
-                  }
+                <DialogTitle sx={{ fontSize: 15, pt: 2 }}>
+                  Are you sure you want to delete this notification? This action
+                  cannot be undone.
                 </DialogTitle>
-                <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
+                <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row mt-2">
                   <button
-                    className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                    className="bg-gray-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-gray-600 transition-colors"
                     onClick={() =>
                       !submitting && setModalDeleteNotification(false)
                     }
                     disabled={submitting}
                   >
-                    No
+                    Cancel
                   </button>
                   <button
-                    className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                    className="bg-red-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-red-600 transition-colors"
                     onClick={handleDelete}
                     disabled={submitting}
                   >
                     {submitting ? (
                       <div className="flex items-center justify-center gap-2">
-                        <CircularProgress size={20} color="primary" />
+                        <CircularProgress size={20} color="inherit" />
                         <span>Deleting...</span>
                       </div>
                     ) : (
-                      "Yes"
+                      "Delete"
                     )}
                   </button>
                 </div>
