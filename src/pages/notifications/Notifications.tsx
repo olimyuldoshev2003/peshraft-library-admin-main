@@ -4,7 +4,7 @@ import { LuPlus } from "react-icons/lu";
 import { AiFillEdit } from "react-icons/ai";
 import { MdDelete, MdOutlineClose } from "react-icons/md";
 import TablePagination from "@mui/material/TablePagination";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Dialog from "@mui/material/Dialog";
 import TextField from "@mui/material/TextField";
 import FormControl from "@mui/material/FormControl";
@@ -40,13 +40,18 @@ const Notifications = () => {
     useState<boolean>(false);
   const [modalDeleteNotification, setModalDeleteNotification] =
     useState<boolean>(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [allNotifications, setAllNotifications] = useState<any[]>([]); // Store all notifications for searching
+  // const [notifications, setNotifications] = useState<any[]>([]);
+  const [allNotifications, setAllNotifications] = useState<any[]>([]);
   const [searchInpValue, setSearchInpValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false); // For add/edit button loading
+  const [submitting, setSubmitting] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<any>(null);
 
   // Validation errors
   const [errors, setErrors] = useState({
@@ -83,11 +88,36 @@ const Notifications = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInpValue(value);
+    setIsSearching(true);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchValue(value);
+      setPage(0);
+      setTimeout(() => setIsSearching(false), 300);
+    }, 500);
+  }, []);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Get current date and time formatted
   const getCurrentDateTime = () => {
     const now = new Date();
-    const date = now.toISOString().split("T")[0]; // YYYY-MM-DD
-    const time = now.toTimeString().split(" ")[0].slice(0, 5); // HH:MM
+    const date = now.toISOString().split("T")[0];
+    const time = now.toTimeString().split(" ")[0].slice(0, 5);
     return { date, time };
   };
 
@@ -102,7 +132,7 @@ const Notifications = () => {
       const snap = await getDocs(collection(db, "notifications"));
       const data = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       setAllNotifications(data);
-      setNotifications(data);
+      // setNotifications(data);
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to load notifications", "error");
@@ -120,22 +150,22 @@ const Notifications = () => {
     }
   }
 
-  // Filter notifications based on search input
-  useEffect(() => {
-    if (!searchInpValue.trim()) {
-      setNotifications(allNotifications);
-    } else {
-      const lowerSearch = searchInpValue.toLowerCase();
-      const filtered = allNotifications.filter(
-        (notification) =>
-          notification.title?.toLowerCase().includes(lowerSearch) ||
-          notification.description?.toLowerCase().includes(lowerSearch) ||
-          notification.notification_type?.toLowerCase().includes(lowerSearch),
-      );
-      setNotifications(filtered);
-      setPage(0); // Reset to first page when search results change
+  // Filter notifications based on debounced search
+  const filteredNotifications = (() => {
+    if (!debouncedSearchValue.trim()) {
+      return allNotifications;
     }
-  }, [searchInpValue, allNotifications]);
+    const lowerSearch = debouncedSearchValue.toLowerCase();
+    return allNotifications.filter(
+      (notification) =>
+        notification.title?.toLowerCase().includes(lowerSearch) ||
+        notification.description?.toLowerCase().includes(lowerSearch) ||
+        notification.notification_type?.toLowerCase().includes(lowerSearch),
+    );
+  })();
+
+  // Show spinner when loading OR searching
+  const showSpinner = loading || isSearching;
 
   // Validate single field
   const validateField = (name: string, value: any, isEdit: boolean = false) => {
@@ -175,10 +205,7 @@ const Notifications = () => {
         break;
 
       case "image":
-        // For add: image is required
-        // For edit: image is required either existing or new
         if (!isEdit) {
-          // Add mode - image is required
           if (!value) {
             error = "Image is required";
           } else if (value.size) {
@@ -189,7 +216,6 @@ const Notifications = () => {
             }
           }
         } else {
-          // Edit mode - image is required either existing or new
           if (!imagePreview && !value) {
             error = "Image is required";
           } else if (value && value.size) {
@@ -414,7 +440,7 @@ const Notifications = () => {
     setPage(0);
   };
 
-  const visibleNotifications = notifications.slice(
+  const visibleNotifications = filteredNotifications.slice(
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage,
   );
@@ -431,7 +457,7 @@ const Notifications = () => {
                 className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
                 placeholder="Search by title, description or type..."
                 value={searchInpValue}
-                onChange={(e) => setSearchInpValue(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
@@ -455,17 +481,15 @@ const Notifications = () => {
             <div className="title_and_btn_add_notifications_block flex justify-between items-center gap-2">
               <h1 className="title_notitfications text-[24px] font-medium">
                 Notifications
-                {searchInpValue && notifications.length === 0 && (
-                  <span className="text-sm text-gray-400 ml-2">
-                    (No results found for "{searchInpValue}")
-                  </span>
-                )}
-                {searchInpValue && notifications.length > 0 && (
-                  <span className="text-sm text-gray-400 ml-2">
-                    ({notifications.length} result
-                    {notifications.length !== 1 ? "s" : ""})
-                  </span>
-                )}
+                {isSearching && " (Searching...)"}
+                {!isSearching &&
+                  debouncedSearchValue &&
+                  filteredNotifications.length > 0 &&
+                  ` (${filteredNotifications.length} result${filteredNotifications.length !== 1 ? "s" : ""})`}
+                {!isSearching &&
+                  debouncedSearchValue &&
+                  filteredNotifications.length === 0 &&
+                  ` (No results for "${debouncedSearchValue}")`}
               </h1>
               <div className="btn_add_block flex justify-between items-center gap-6">
                 <button
@@ -481,7 +505,7 @@ const Notifications = () => {
               </div>
             </div>
 
-            {loading ? (
+            {showSpinner ? (
               <div className="flex justify-center py-10">
                 <CircularProgress />
               </div>
@@ -489,8 +513,8 @@ const Notifications = () => {
               <div className="notifications_block mt-6 flex flex-col gap-3">
                 {visibleNotifications.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">
-                    {searchInpValue
-                      ? `No notifications found matching "${searchInpValue}"`
+                    {debouncedSearchValue
+                      ? `No notifications found matching "${debouncedSearchValue}"`
                       : "No notifications yet. Click 'Add Notification' to create one."}
                   </p>
                 ) : (
@@ -531,12 +555,12 @@ const Notifications = () => {
               </div>
             )}
 
-            {notifications.length > 0 && (
+            {!showSpinner && filteredNotifications.length > 0 && (
               <div className="pagination_notfications">
                 <TablePagination
                   rowsPerPageOptions={[17, 10, 8, 5]}
                   component="div"
-                  count={notifications.length}
+                  count={filteredNotifications.length}
                   rowsPerPage={rowsPerPage}
                   page={page}
                   onPageChange={handleChangePage}

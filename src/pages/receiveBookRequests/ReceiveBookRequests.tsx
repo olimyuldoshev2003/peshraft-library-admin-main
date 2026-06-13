@@ -87,7 +87,9 @@ const ReceiveBookRequests = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  // const [actionLoading, setActionLoading] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [declining, setDeclining] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
 
@@ -263,7 +265,7 @@ const ReceiveBookRequests = () => {
 
   async function handleAccept() {
     if (!selectedRequestId) return;
-    setActionLoading(true);
+    setAccepting(true);
     try {
       await acceptReceiveBookRequest(selectedRequestId); // 🔥 Firebase
       setModalConfirm(false);
@@ -272,13 +274,13 @@ const ReceiveBookRequests = () => {
     } catch (e) {
       alert("Error accepting request");
     } finally {
-      setActionLoading(false);
+      setAccepting(false);
     }
   }
 
   async function handleDecline() {
     if (!selectedRequestId) return;
-    setActionLoading(true);
+    setDeclining(true);
     try {
       await declineReceiveBookRequest(selectedRequestId); // 🔥 Firebase
       setModalConfirm(false);
@@ -287,7 +289,7 @@ const ReceiveBookRequests = () => {
     } catch (e) {
       alert("Error declining request");
     } finally {
-      setActionLoading(false);
+      setDeclining(false);
     }
   }
 
@@ -357,7 +359,7 @@ const ReceiveBookRequests = () => {
                               src={
                                 row.img || row.member_image_url || "/no-img.jpg"
                               }
-                              className="w-10 h-10 rounded-full object-cover"
+                              className="min-w-10 h-10 rounded-full object-cover"
                               alt=""
                               onError={(e: any) => {
                                 e.target.src = noImg;
@@ -434,7 +436,7 @@ const ReceiveBookRequests = () => {
 
             <Dialog
               open={modalConfirm}
-              onClose={() => setModalConfirm(false)}
+              onClose={() => !accepting && !declining && setModalConfirm(false)}
               fullWidth
             >
               <div className="modal_delete_book_block px-4 py-4">
@@ -444,7 +446,10 @@ const ReceiveBookRequests = () => {
                   </h1>
                   <button
                     className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
-                    onClick={() => setModalConfirm(false)}
+                    onClick={() =>
+                      !accepting && !declining && setModalConfirm(false)
+                    }
+                    disabled={accepting || declining}
                   >
                     <MdOutlineClose size={27} />
                   </button>
@@ -454,18 +459,32 @@ const ReceiveBookRequests = () => {
                 </DialogTitle>
                 <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                   <button
-                    className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#0d8ae0] transition-colors"
+                    className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#0d8ae0] transition-colors flex items-center justify-center gap-2"
                     onClick={handleDecline}
-                    disabled={actionLoading}
+                    disabled={accepting || declining}
                   >
-                    {actionLoading ? "Processing..." : "No"}
+                    {declining ? (
+                      <>
+                        <CircularProgress size={20} color="inherit" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      "No"
+                    )}
                   </button>
                   <button
-                    className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[darkred] transition-colors"
+                    className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[darkred] transition-colors flex items-center justify-center gap-2"
                     onClick={handleAccept}
-                    disabled={actionLoading}
+                    disabled={accepting || declining}
                   >
-                    {actionLoading ? "Processing..." : "Yes"}
+                    {accepting ? (
+                      <>
+                        <CircularProgress size={20} color="inherit" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      "Yes"
+                    )}
                   </button>
                 </div>
               </div>

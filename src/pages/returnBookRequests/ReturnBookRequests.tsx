@@ -1,6 +1,6 @@
 import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
@@ -80,8 +80,38 @@ const ReturnBookRequests = () => {
   );
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+
+  // Debounce timeout ref
+  const debounceTimeoutRef = useRef<any>(null);
+
+  // Debounced search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchValue(value);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
+      setDebouncedSearchValue(value);
+      setPage(0);
+      setTimeout(() => setIsSearching(false), 300);
+    }, 500);
+  }, []);
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function descendingComparator<T>(a: T, b: T, key: keyof T) {
     if (b[key] < a[key]) return -1;
@@ -168,6 +198,11 @@ const ReturnBookRequests = () => {
           component="div"
         >
           Return Book Requests
+          {isSearching && " (Searching...)"}
+          {!isSearching &&
+            debouncedSearchValue &&
+            filteredRows.length > 0 &&
+            ` (${filteredRows.length} result${filteredRows.length !== 1 ? "s" : ""})`}
         </Typography>
       </Toolbar>
     );
@@ -179,15 +214,20 @@ const ReturnBookRequests = () => {
     setOrderBy(property);
   };
 
-  const filteredRows = rows.filter((r) => {
-    const lower = searchValue.toLowerCase();
-    return (
-      !lower ||
-      r.borrowerName?.toLowerCase().includes(lower) ||
-      r.bookTitle?.toLowerCase().includes(lower) ||
-      r.email?.toLowerCase().includes(lower)
+  const filteredRows = useMemo(() => {
+    if (!debouncedSearchValue.trim()) {
+      return rows;
+    }
+    const lower = debouncedSearchValue.toLowerCase();
+    return rows.filter(
+      (r) =>
+        r.borrowerName?.toLowerCase().includes(lower) ||
+        r.bookTitle?.toLowerCase().includes(lower) ||
+        r.email?.toLowerCase().includes(lower) ||
+        r.returnerFullName?.toLowerCase().includes(lower),
     );
-  });
+  }, [rows, debouncedSearchValue]);
+
   const emptyRows =
     page > 0 ? Math.max(0, (1 + page) * rowsPerPage - filteredRows.length) : 0;
   const visibleRows = useMemo(
@@ -216,7 +256,7 @@ const ReturnBookRequests = () => {
 
   async function handleAccept() {
     if (!selectedRequestId) return;
-    setActionLoading(true);
+    setAccepting(true);
     try {
       await acceptReturnBookRequest(selectedRequestId); // 🔥 Firebase
       setModalConfirm(false);
@@ -225,9 +265,12 @@ const ReturnBookRequests = () => {
     } catch (e) {
       alert("Error accepting return request");
     } finally {
-      setActionLoading(false);
+      setAccepting(false);
     }
   }
+
+  // Show spinner when loading OR searching
+  const showSpinner = loading || isSearching;
 
   return (
     <>
@@ -241,7 +284,7 @@ const ReturnBookRequests = () => {
                 className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
                 placeholder="Search by name, book, email..."
                 value={searchValue}
-                onChange={(e) => setSearchValue(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
@@ -262,7 +305,7 @@ const ReturnBookRequests = () => {
           </div>
 
           <div className="section_received_book_requests mt-6">
-            {loading ? (
+            {showSpinner ? (
               <div className="flex justify-center mt-6">
                 <CircularProgress />
               </div>
@@ -277,7 +320,7 @@ const ReturnBookRequests = () => {
                       orderBy={orderBy}
                       onSelectAllClick={() => {}}
                       onRequestSort={handleRequestSort}
-                      rowCount={rows.length}
+                      rowCount={filteredRows.length}
                     />
                     <TableBody>
                       {visibleRows.map((row, index) => (
@@ -289,9 +332,14 @@ const ReturnBookRequests = () => {
                         >
                           <TableCell>
                             <img
-                              src={row.img || "/no-img.jpg"}
-                              className="w-10 h-10 rounded-full object-cover"
+                              src={
+                                row.img || row.member_image_url || "/no-img.jpg"
+                              }
+                              className="min-w-10 h-10 rounded-full object-cover"
                               alt=""
+                              onError={(e: any) => {
+                                e.target.src = noImg;
+                              }}
                             />
                           </TableCell>
                           <TableCell
@@ -300,10 +348,13 @@ const ReturnBookRequests = () => {
                             scope="row"
                             padding="none"
                           >
-                            {row.borrowerName || row.returnerFullName}
+                            {row.borrowerName ||
+                              row.returnerFullName ||
+                              row.userName ||
+                              "-"}
                           </TableCell>
-                          <TableCell>{row.phoneNumber}</TableCell>
-                          <TableCell>{row.email}</TableCell>
+                          <TableCell>{row.phoneNumber || "-"}</TableCell>
+                          <TableCell>{row.email || "-"}</TableCell>
                           <TableCell>
                             {formatTimestamp(
                               row.dateBorrowed || row.borrowedDate,
@@ -312,11 +363,11 @@ const ReturnBookRequests = () => {
                           <TableCell>
                             {formatTimestamp(row.createdAt || row.requestDate)}
                           </TableCell>
-                          <TableCell>{row.bookTitle}</TableCell>
-                          <TableCell>{row.author}</TableCell>
+                          <TableCell>{row.bookTitle || "-"}</TableCell>
+                          <TableCell>{row.author || "-"}</TableCell>
                           <TableCell>
                             <button
-                              className="bg-[green] px-2.5 py-1.5 rounded-[5px] text-white text-[14px] font-500 cursor-pointer outline-none"
+                              className="bg-[green] px-2.5 py-1.5 rounded-[5px] text-white text-[14px] font-500 cursor-pointer outline-none hover:bg-[darkgreen] transition-colors"
                               onClick={() => {
                                 setSelectedRequestId(row.id);
                                 setModalConfirm(true);
@@ -327,11 +378,13 @@ const ReturnBookRequests = () => {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {!loading && rows.length === 0 && (
+                      {!isSearching && filteredRows.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={9}>
                             <h1 className="text-center py-4 text-gray-400">
-                              No pending return requests
+                              {debouncedSearchValue
+                                ? `No pending return requests found matching "${debouncedSearchValue}"`
+                                : "No pending return requests"}
                             </h1>
                           </TableCell>
                         </TableRow>
@@ -361,7 +414,7 @@ const ReturnBookRequests = () => {
 
             <Dialog
               open={modalConfirm}
-              onClose={() => setModalConfirm(false)}
+              onClose={() => !accepting && setModalConfirm(false)}
               fullWidth
             >
               <div className="modal_delete_book_block px-4 py-4">
@@ -370,8 +423,9 @@ const ReturnBookRequests = () => {
                     Request Returning Book
                   </h1>
                   <button
-                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
-                    onClick={() => setModalConfirm(false)}
+                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
+                    onClick={() => !accepting && setModalConfirm(false)}
+                    disabled={accepting}
                   >
                     <MdOutlineClose size={27} />
                   </button>
@@ -381,18 +435,25 @@ const ReturnBookRequests = () => {
                 </DialogTitle>
                 <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                   <button
-                    className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                    onClick={() => setModalConfirm(false)}
-                    disabled={actionLoading}
+                    className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#0d8ae0] transition-colors"
+                    onClick={() => !accepting && setModalConfirm(false)}
+                    disabled={accepting}
                   >
                     No
                   </button>
                   <button
-                    className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                    className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[darkred] transition-colors flex items-center justify-center gap-2"
                     onClick={handleAccept}
-                    disabled={actionLoading}
+                    disabled={accepting}
                   >
-                    {actionLoading ? "Processing..." : "Yes"}
+                    {accepting ? (
+                      <>
+                        <CircularProgress size={20} color="inherit" />
+                        <span>Processing...</span>
+                      </>
+                    ) : (
+                      "Yes"
+                    )}
                   </button>
                 </div>
               </div>

@@ -140,6 +140,7 @@ const ReceivedMembers = () => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedId, setSelectedId] = useState<string>("");
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
@@ -190,12 +191,15 @@ const ReceivedMembers = () => {
 
   async function handleDelete() {
     if (!selectedId) return;
+    setDeleting(true);
     try {
       await deleteReceivedMember(selectedId);
       setModalDeleteReceivedUser(false);
       loadData();
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -428,7 +432,7 @@ const ReceivedMembers = () => {
                               <TableCell>
                                 <img
                                   src={row.member_image_url || noImg}
-                                  className="w-10 h-10 rounded-full object-cover"
+                                  className="min-w-10 h-10 rounded-full object-cover"
                                   alt=""
                                   onError={(e: any) => {
                                     e.target.src = noImg;
@@ -517,15 +521,16 @@ const ReceivedMembers = () => {
 
           <Dialog
             open={modalDeleteReceivedUser}
-            onClose={() => setModalDeleteReceivedUser(false)}
+            onClose={() => !deleting && setModalDeleteReceivedUser(false)}
             fullWidth
           >
             <div className="modal_delete_received_book_user_block px-4 py-4">
               <div className="header_delete_received_book_user_block flex items-center gap-6 justify-between">
                 <h1 className="text-[26px] font-600">Delete Received Member</h1>
                 <button
-                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
-                  onClick={() => setModalDeleteReceivedUser(false)}
+                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
+                  onClick={() => !deleting && setModalDeleteReceivedUser(false)}
+                  disabled={deleting}
                 >
                   <MdOutlineClose size={27} />
                 </button>
@@ -537,16 +542,25 @@ const ReceivedMembers = () => {
               </DialogTitle>
               <div className="block_btns flex gap-5 justify-between">
                 <button
-                  className="hover:bg-[#20ACFF] p-2.5 rounded-[10px] text-[#20ACFF] hover:text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                  onClick={() => setModalDeleteReceivedUser(false)}
+                  className="bg-gray-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-gray-600 transition-colors"
+                  onClick={() => !deleting && setModalDeleteReceivedUser(false)}
+                  disabled={deleting}
                 >
                   No
                 </button>
                 <button
-                  className="hover:bg-[red] text-[red] p-2.5 rounded-[10px] hover:text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  className="bg-red-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
                   onClick={handleDelete}
+                  disabled={deleting}
                 >
-                  Yes
+                  {deleting ? (
+                    <>
+                      <CircularProgress size={20} color="inherit" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    "Yes"
+                  )}
                 </button>
               </div>
             </div>
