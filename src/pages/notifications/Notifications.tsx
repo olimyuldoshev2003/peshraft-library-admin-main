@@ -934,7 +934,7 @@ const Notifications = () => {
                   Are you sure you want to delete this notification? This action
                   cannot be undone.
                 </DialogTitle>
-                <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row mt-2">
+                <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                   <button
                     className="bg-gray-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-gray-600 transition-colors"
                     onClick={() =>

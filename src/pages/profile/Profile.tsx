@@ -55,7 +55,10 @@ const Profile = () => {
   const [selected, setSelected] = useState<readonly number[]>([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState<number>(17);
+
   const [modalAccept, setModalAccept] = useState<boolean>(false);
+  const [modalLogout, setModalLogout] = useState<boolean>(false);
+
   const [pendingAdmins, setPendingAdmins] = useState<any[]>([]);
   const [selectedAdminId, setSelectedAdminId] = useState<string>("");
   const [adminsLoading, setAdminsLoading] = useState(false);
@@ -276,8 +279,8 @@ const Profile = () => {
         <div className="profile_component_block p-5 max-w-360 mx-auto">
           {/* Language Section */}
           <div className="header_profile_component flex flex-col gap-2">
-            <h1 className="text-[24px] font-600">Language</h1>
-            <div className="header_profile_component_block shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4">
+            <h1 className="text-[24px] font-600">Options</h1>
+            <div className="header_profile_component_block shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 flex justify-between items-center gap-5">
               <FormControl fullWidth>
                 <InputLabel>Language</InputLabel>
                 <Select label="Language">
@@ -289,6 +292,14 @@ const Profile = () => {
                   <MenuItem value={"tj"}>Tajik</MenuItem>
                 </Select>
               </FormControl>
+              <button
+                className="btn_open_modal_logout outline-none bg-red-500 rounded-[10px] px-5 py-1 text-white cursor-pointer"
+                onClick={() => {
+                  setModalLogout(true);
+                }}
+              >
+                Logout
+              </button>
             </div>
           </div>
 
@@ -300,7 +311,7 @@ const Profile = () => {
                 <div className="block_flex_img flex flex-col gap-3">
                   <img
                     className="w-38 h-38 shadow-2xl object-cover rounded-full"
-                    src={adminProfile.image_url || noImg}
+                    src={adminProfile?.image_url || noImg}
                     alt=""
                     onError={(e: any) => {
                       e.target.src = noImg;
@@ -314,25 +325,25 @@ const Profile = () => {
                   <h2 className="title_fullname text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Full Name
                   </h2>
-                  <h1 className="fullname">{adminProfile.fullName}</h1>
+                  <h1 className="fullname">{adminProfile?.fullName}</h1>
                 </div>
                 <div>
                   <h2 className="title_date_of_birth text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Date of birth
                   </h2>
-                  <h1 className="date_of_birth">{adminProfile.dateOfBirth}</h1>
+                  <h1 className="date_of_birth">{adminProfile?.dateOfBirth}</h1>
                 </div>
                 <div>
                   <h2 className="title_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Phone Number
                   </h2>
-                  <h1 className="phone_number">{adminProfile.dateOfBirth}</h1>
+                  <h1 className="phone_number">{adminProfile?.dateOfBirth}</h1>
                 </div>
                 <div>
                   <h2 className="title_email text-[#9794AA] text-[16px] font-500 cursor-pointer">
                     Phone Number
                   </h2>
-                  <h1 className="email">{adminProfile.email}</h1>
+                  <h1 className="email">{adminProfile?.email}</h1>
                 </div>
               </div>
             </div>
@@ -436,6 +447,44 @@ const Profile = () => {
               </Paper>
             )}
           </div>
+
+          {/* Modal: Logout */}
+          <Dialog
+            open={modalLogout}
+            onClose={() => setModalLogout(false)}
+            fullWidth
+          >
+            <div className="modal_delete_book_block px-4 py-4">
+              <div className="header_delete_book_block flex items-center gap-6 justify-between">
+                <h1 className="text-[17px] font-600">
+                  Request of becoming admin
+                </h1>
+                <button
+                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  onClick={() => setModalLogout(false)}
+                >
+                  <MdOutlineClose size={27} />
+                </button>
+              </div>
+              <DialogTitle sx={{ fontSize: 15 }}>
+                {"Do you really want to logout from your account?"}
+              </DialogTitle>
+              <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
+                <button
+                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  onClick={() => setModalAccept(false)}
+                >
+                  No
+                </button>
+                <button
+                  className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  // onClick={}
+                >
+                  Yes
+                </button>
+              </div>
+            </div>
+          </Dialog>
 
           {/* Modal: Accept Admin */}
           <Dialog

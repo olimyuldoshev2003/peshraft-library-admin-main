@@ -540,7 +540,7 @@ const ReceivedMembers = () => {
                   "Are you sure to delete this received member? This action can't be undone"
                 }
               </DialogTitle>
-              <div className="block_btns flex gap-5 justify-between">
+              <div className="block_btns flex gap-5 justify-between sm:flex-col-reverse md:flex-row">
                 <button
                   className="bg-gray-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-gray-600 transition-colors"
                   onClick={() => !deleting && setModalDeleteReceivedUser(false)}
