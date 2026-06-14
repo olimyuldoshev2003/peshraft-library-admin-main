@@ -41,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Firebase automatically tells us when login state changes
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
       setCurrentUser(user);
       if (user) {
         await loadProfile(user);
@@ -55,7 +55,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ currentUser, adminProfile, loading, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ currentUser, adminProfile, loading, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );
