@@ -11,7 +11,7 @@ import { PiBookOpen, PiKeyReturnFill, PiUsersThree } from "react-icons/pi";
 import { GrNotification } from "react-icons/gr";
 import { CgProfile } from "react-icons/cg";
 import { FaPhoneAlt } from "react-icons/fa";
-import { MdOutlineEmail } from "react-icons/md";
+import { MdDeleteForever, MdOutlineEmail } from "react-icons/md";
 
 import SecurityUpdateGoodOutlinedIcon from "@mui/icons-material/SecurityUpdateGoodOutlined";
 import { IoMenu } from "react-icons/io5";
@@ -87,6 +87,13 @@ const Layout = () => {
       path: "/dashboard/profile",
       icon: CgProfile,
       label: "Profile",
+      exact: false,
+    },
+    {
+      id: 9,
+      path: "/dashboard/delete-admins",
+      icon: MdDeleteForever,
+      label: "Delete Admins",
       exact: false,
     },
   ];

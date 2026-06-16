@@ -907,10 +907,10 @@ const Books = () => {
           <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
             <div className="fullname_of_user_and_admin_title">
               <h1 className="text-[22px] font-500">
-                {adminProfile?.fullName || "Admin"}
+                {adminProfile?.fullName || "Unknown"}
               </h1>
               <h1 className="text-[#808080] text-[15px] font-400 text-right">
-                Admin
+                {adminProfile.is_main_admin === true ? "Main Admin" : "Admin"}
               </h1>
             </div>
             <img

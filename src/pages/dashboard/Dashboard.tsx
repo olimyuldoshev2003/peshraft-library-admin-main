@@ -1,5 +1,5 @@
 import "./Dashboard.css";
-import { HiOutlineSearch } from "react-icons/hi";
+// import { HiOutlineSearch } from "react-icons/hi";
 import noImg from "../../assets/no-img.jpg";
 import { LuUsers } from "react-icons/lu";
 import { PiBookOpen } from "react-icons/pi";
@@ -25,6 +25,8 @@ import { useAuth } from "../../context/AuthContext";
 
 const Dashboard = () => {
   const { adminProfile } = useAuth();
+  console.log(adminProfile);
+
   const [stat, setStat] = useState<any>({});
   const [loadingStat, setLoadingStat] = useState(false);
   const [overdueBorrowers, setOverdueBorrowers] = useState<any[]>([]);
@@ -121,22 +123,14 @@ const Dashboard = () => {
   return (
     <>
       <div className="dashboard_component p-4 max-w-360 mx-auto">
-        <div className="header_dashboard_admin flex justify-between items-center">
-          <div className="search_logo_and_search_input relative flex-1">
-            <HiOutlineSearch size={24} className="absolute top-2.5 left-3" />
-            <input
-              type="search"
-              className="inp_search outline-none shadow-[0_0_6px_gray] pl-12 pr-4 py-2 rounded-[30px] text-[18px] font-500 sm:w-full md:w-[90%] lg:w-[80%]"
-              placeholder="Search enter..."
-            />
-          </div>
+        <div className="header_dashboard_admin flex justify-end items-center">
           <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
             <div className="fullname_of_user_and_admin_title">
               <h1 className="text-[22px] font-500">
-                {adminProfile?.fullName || "Admin"}
+                {adminProfile?.fullName || "Unknown"}
               </h1>
               <h1 className="text-[#808080] text-[15px] font-400 text-right">
-                Admin
+                {adminProfile.is_main_admin === true ? "Main Admin" : "Admin"}
               </h1>
             </div>
             <img

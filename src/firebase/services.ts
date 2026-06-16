@@ -238,6 +238,19 @@ export const deleteCategory = async (categoryId: string) => {
 // MEMBERS SERVICES
 // ============================================================
 
+export const getAdmins = async () => {
+  const snapshot = await getDocs(collection(db, "admins"));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+export const deleteAdmin = async (adminId: string) => {
+  await deleteDoc(doc(db, "admins", adminId));
+};
+
+export const deleteMember = async (memberId: string) => {
+  await deleteDoc(doc(db, "users", memberId));
+};
+
 export const getMembers = async () => {
   const snapshot = await getDocs(collection(db, "users"));
   return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));

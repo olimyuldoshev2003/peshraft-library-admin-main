@@ -18,6 +18,7 @@ import AuthCheck from "./utils/AuthCheck";
 import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import EditAdmin from "./pages/editAdmin/EditAdmin";
+import DeleteAdmins from "./pages/deleteAdmins/DeleteAdmins";
 
 function App() {
   const router = createBrowserRouter([
@@ -149,6 +150,14 @@ function App() {
           element: (
             <ProtectedRoute>
               <EditAdmin />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "delete-admins",
+          element: (
+            <ProtectedRoute>
+              <DeleteAdmins />
             </ProtectedRoute>
           ),
         },

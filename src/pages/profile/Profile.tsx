@@ -22,7 +22,7 @@ import { MdOutlineClose } from "react-icons/md";
 import DialogTitle from "@mui/material/DialogTitle";
 import CircularProgress from "@mui/material/CircularProgress";
 import noImg from "../../assets/no-img.jpg";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
   updatePassword,
@@ -62,17 +62,61 @@ const Profile = () => {
 
   const [modalAccept, setModalAccept] = useState<boolean>(false);
   const [modalLogout, setModalLogout] = useState<boolean>(false);
+  const [logoutLoading, setLogoutLoading] = useState<boolean>(false);
 
   const [pendingAdmins, setPendingAdmins] = useState<any[]>([]);
   const [selectedAdminId, setSelectedAdminId] = useState<string>("");
   const [adminsLoading, setAdminsLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [userNotFound, setUserNotFound] = useState(false);
+
+  // Format date to DD.MM.YYYY
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const day = String(date.getDate()).padStart(2, "0");
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${day}.${month}.${year}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Load profile data
+  useEffect(() => {
+    setProfileLoading(true);
+    setUserNotFound(false);
+
+    if (adminProfile) {
+      const timer = setTimeout(() => {
+        setProfileLoading(false);
+        setUserNotFound(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      const timer = setTimeout(() => {
+        if (!adminProfile) {
+          setProfileLoading(false);
+          setUserNotFound(true);
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [adminProfile]);
+
+  // Load pending admins when component mounts
+  useEffect(() => {
+    loadPendingAdmins();
+  }, []);
 
   async function loadPendingAdmins() {
     setAdminsLoading(true);
     try {
       const data = await getPendingAdmins();
       console.log(data);
-
       setPendingAdmins(data);
     } catch (err) {
       console.error(err);
@@ -100,10 +144,8 @@ const Profile = () => {
     try {
       const user = auth.currentUser;
       if (!user || !user.email) return;
-      // Re-authenticate first
       const credential = EmailAuthProvider.credential(user.email, oldPassword);
       await reauthenticateWithCredential(user, credential);
-      // Then update password
       await updatePassword(user, newPassword);
       setPasswordSuccess("Password changed successfully!");
       setOldPassword("");
@@ -218,17 +260,16 @@ const Profile = () => {
     [pendingAdmins, order, orderBy, page, rowsPerPage],
   );
 
-  function handleLogout() {
-    logoutFromAccount();
-  }
-
   async function logoutFromAccount() {
+    setLogoutLoading(true);
     try {
       await firebaseSignOut();
       setModalLogout(false);
       navigate("/");
     } catch (error) {
       console.error(error);
+    } finally {
+      setLogoutLoading(false);
     }
   }
 
@@ -300,7 +341,7 @@ const Profile = () => {
           {/* Language Section */}
           <div className="header_profile_component flex flex-col gap-2">
             <h1 className="text-[24px] font-600">Options</h1>
-            <div className="header_profile_component_block shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 flex justify-between items-center gap-5">
+            <div className="header_profile_component_block shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 flex justify-between items-center sm:flex-col md:flex-row gap-5">
               <FormControl fullWidth>
                 <InputLabel>Language</InputLabel>
                 <Select label="Language">
@@ -313,7 +354,7 @@ const Profile = () => {
                 </Select>
               </FormControl>
               <button
-                className="btn_open_modal_logout outline-none bg-red-500 rounded-[10px] px-5 py-1 text-white cursor-pointer"
+                className="btn_open_modal_logout outline-none bg-red-500 rounded-[10px] px-1 py-3.5 text-white text-[19px] cursor-pointer w-full"
                 onClick={() => {
                   setModalLogout(true);
                 }}
@@ -326,60 +367,90 @@ const Profile = () => {
           {/* Profile Section */}
           <div className="section_profile_component mt-6">
             <h1 className="text-[24px] font-600">Profile</h1>
-            <div className="admin_info shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 mt-2 flex sm:flex-col lg:flex-row lg:justify-evenly lg:items-center gap-10">
-              <div className="block_admin_img flex sm:flex-row lg:flex-col sm:justify-center lg:justify-start gap-12">
-                <div className="block_flex_img flex flex-col gap-3">
-                  <img
-                    className="w-38 h-38 shadow-2xl object-cover rounded-full"
-                    src={adminProfile?.image_url || noImg}
-                    alt=""
-                    onError={(e: any) => {
-                      e.target.src = noImg;
+            {profileLoading ? (
+              <div className="px-7 py-4 mt-2 flex justify-center items-center">
+                <CircularProgress size={50} />
+              </div>
+            ) : userNotFound ? (
+              <div className="shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 mt-2 flex justify-center items-center">
+                <Typography variant="h6" color="error">
+                  User not found
+                </Typography>
+              </div>
+            ) : (
+              <>
+                <div className="admin_info shadow-[0_0_8px_#00000040] rounded-xl px-7 py-4 mt-2 flex sm:flex-col lg:flex-row lg:justify-evenly lg:items-center gap-10">
+                  <div className="block_admin_img flex sm:flex-row lg:flex-col sm:justify-center lg:justify-start gap-12">
+                    <div className="block_flex_img flex flex-col gap-3">
+                      <img
+                        className="w-38 h-38 shadow-2xl object-cover rounded-full"
+                        src={adminProfile?.image_url || noImg}
+                        alt="Profile"
+                        onError={(e: any) => {
+                          e.target.src = noImg;
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="admin_info_block grid sm:grid-cols-1 md:grid-cols-2 sm:place-items-center md:place-items-start gap-5">
+                    <div>
+                      <h2 className="title_fullname text-[#9794AA] text-[16px] font-500 sm:text-center md:text-start">
+                        Full Name
+                      </h2>
+                      <h1 className="fullname sm:text-center md:text-start">
+                        {adminProfile?.fullName || "-"}
+                      </h1>
+                    </div>
+                    <div>
+                      <h2 className="title_date_of_birth text-[#9794AA] text-[16px] font-500 sm:text-center md:text-start">
+                        Date of birth
+                      </h2>
+                      <h1 className="date_of_birth sm:text-center md:text-start">
+                        {formatDate(adminProfile?.dateOfBirth)}
+                      </h1>
+                    </div>
+                    <div>
+                      <h2 className="title_phone_number text-[#9794AA] text-[16px] font-500 sm:text-center md:text-start">
+                        Phone Number
+                      </h2>
+                      <h1 className="phone_number sm:text-center md:text-start">
+                        {adminProfile?.phoneNumber || "-"}
+                      </h1>
+                    </div>
+                    <div>
+                      <h2 className="title_email text-[#9794AA] text-[16px] font-500 sm:text-center md:text-start">
+                        Email
+                      </h2>
+                      <h1 className="email sm:text-center md:text-start">{adminProfile?.email || "-"}</h1>
+                    </div>
+                    <div>
+                      <h2 className="title_role text-[#9794AA] text-[16px] font-500 sm:text-center md:text-start">
+                        Role
+                      </h2>
+                      <h1 className="role sm:text-center md:text-start">
+                        {adminProfile.is_main_admin === true
+                          ? "Main Admin"
+                          : "Admin"}
+                      </h1>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Edit Admin - Only show if user is found */}
+                <div className="block_link_change_password mt-3">
+                  <h1 className="text-[24px] font-600">Edit Admin</h1>
+                  <button
+                    onClick={() => {
+                      navigate("/dashboard/edit-admin");
                     }}
-                  />
+                    className="text-[blue] hover:underline cursor-pointer bg-transparent border-none text-[16px]"
+                  >
+                    Change admin info
+                  </button>
                 </div>
-              </div>
-
-              <div className="admin_info_block grid sm:grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <h2 className="title_fullname text-[#9794AA] text-[16px] font-500 cursor-pointer">
-                    Full Name
-                  </h2>
-                  <h1 className="fullname">{adminProfile?.fullName}</h1>
-                </div>
-                <div>
-                  <h2 className="title_date_of_birth text-[#9794AA] text-[16px] font-500 cursor-pointer">
-                    Date of birth
-                  </h2>
-                  <h1 className="date_of_birth">{adminProfile?.dateOfBirth}</h1>
-                </div>
-                <div>
-                  <h2 className="title_phone_number text-[#9794AA] text-[16px] font-500 cursor-pointer">
-                    Phone Number
-                  </h2>
-                  <h1 className="phone_number">{adminProfile?.dateOfBirth}</h1>
-                </div>
-                <div>
-                  <h2 className="title_email text-[#9794AA] text-[16px] font-500 cursor-pointer">
-                    Phone Number
-                  </h2>
-                  <h1 className="email">{adminProfile?.email}</h1>
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Admin */}
-            <div className="block_link_change_password mt-3">
-              <h1 className="text-[24px] font-600">Edit Admin</h1>
-              <button
-                onClick={() => {
-                  navigate("/dashboard/edit-admin");
-                }}
-                className="text-[blue] hover:underline cursor-pointer bg-transparent border-none text-[16px]"
-              >
-                Change admin info
-              </button>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Admins Table — only visible to main admin */}
@@ -387,7 +458,7 @@ const Profile = () => {
             <h1 className="text-[24px] font-600">Admins</h1>
             {adminsLoading ? (
               <div className="flex justify-center py-6">
-                <CircularProgress />
+                <CircularProgress size={40} />
               </div>
             ) : (
               <Paper sx={{ width: "100%", paddingLeft: 3, paddingRight: 3 }}>
@@ -416,7 +487,7 @@ const Profile = () => {
                               {row.fullName || row.name || "-"}
                             </TableCell>
                             <TableCell>
-                              {row.dateOfBirth || row.date_of_birth || "-"}
+                              {formatDate(row.dateOfBirth || row.date_of_birth)}
                             </TableCell>
                             <TableCell>
                               {row.phoneNumber || row.phone || "-"}
@@ -424,7 +495,7 @@ const Profile = () => {
                             <TableCell>{row.email || "-"}</TableCell>
                             <TableCell>
                               <button
-                                className="bg-[green] px-2.5 py-1.5 rounded-[5px] text-white text-[14px] font-500 cursor-pointer outline-none"
+                                className="bg-[green] px-2.5 py-1.5 rounded-[5px] text-white text-[14px] font-500 cursor-pointer outline-none hover:bg-[#006600] transition-colors"
                                 onClick={() => {
                                   setSelectedAdminId(row.id);
                                   setModalAccept(true);
@@ -478,7 +549,7 @@ const Profile = () => {
               <div className="header_logput_block flex items-center gap-6 justify-between">
                 <h1 className="text-[17px] font-600">Logout</h1>
                 <button
-                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-[#c0c0c0] transition-colors"
                   onClick={() => setModalLogout(false)}
                 >
                   <MdOutlineClose size={27} />
@@ -489,16 +560,22 @@ const Profile = () => {
               </DialogTitle>
               <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                 <button
-                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                  onClick={() => setModalAccept(false)}
+                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#1a8fd4]"
+                  onClick={() => setModalLogout(false)}
+                  disabled={logoutLoading}
                 >
                   No
                 </button>
                 <button
-                  className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                  onClick={handleLogout}
+                  className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#cc0000] disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={logoutFromAccount}
+                  disabled={logoutLoading}
                 >
-                  Yes
+                  {logoutLoading ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    "Yes"
+                  )}
                 </button>
               </div>
             </div>
@@ -516,7 +593,7 @@ const Profile = () => {
                   Request of becoming admin
                 </h1>
                 <button
-                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-[#c0c0c0] transition-colors"
                   onClick={() => setModalAccept(false)}
                 >
                   <MdOutlineClose size={27} />
@@ -529,13 +606,13 @@ const Profile = () => {
               </DialogTitle>
               <div className="block_btns flex gap-2 justify-between sm:flex-col-reverse md:flex-row">
                 <button
-                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#1a8fd4]"
                   onClick={() => setModalAccept(false)}
                 >
                   No
                 </button>
                 <button
-                  className="bg-[green] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
+                  className="bg-[green] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-[#006600]"
                   onClick={handleApproveAdmin}
                 >
                   Yes
@@ -554,7 +631,7 @@ const Profile = () => {
               <div className="flex items-center gap-6 justify-between mb-4">
                 <h1 className="text-[22px] font-600">Change Password</h1>
                 <button
-                  className="outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
+                  className="outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-[#c0c0c0] transition-colors"
                   onClick={() => setModalChangePassword(false)}
                 >
                   <MdOutlineClose size={27} />
@@ -591,7 +668,7 @@ const Profile = () => {
                 <button
                   onClick={handleChangePassword}
                   disabled={passwordLoading}
-                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full disabled:opacity-50"
+                  className="bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full disabled:opacity-50 hover:bg-[#1a8fd4] transition-colors"
                 >
                   {passwordLoading ? "Changing..." : "Change Password"}
                 </button>

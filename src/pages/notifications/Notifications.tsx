@@ -4,7 +4,7 @@ import { LuPlus } from "react-icons/lu";
 import { AiFillEdit } from "react-icons/ai";
 import { MdDelete, MdOutlineClose } from "react-icons/md";
 import TablePagination from "@mui/material/TablePagination";
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Dialog from "@mui/material/Dialog";
 import TextField from "@mui/material/TextField";
 import FormControl from "@mui/material/FormControl";
@@ -40,7 +40,6 @@ const Notifications = () => {
     useState<boolean>(false);
   const [modalDeleteNotification, setModalDeleteNotification] =
     useState<boolean>(false);
-  // const [notifications, setNotifications] = useState<any[]>([]);
   const [allNotifications, setAllNotifications] = useState<any[]>([]);
   const [searchInpValue, setSearchInpValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
@@ -49,6 +48,7 @@ const Notifications = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
+  
 
   // Debounce timeout ref
   const debounceTimeoutRef = useRef<any>(null);
@@ -88,16 +88,16 @@ const Notifications = () => {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Debounced search handler
+  // Debounced search handler - spinner only shows AFTER debounce
   const handleSearchChange = useCallback((value: string) => {
     setSearchInpValue(value);
-    setIsSearching(true);
 
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
 
     debounceTimeoutRef.current = setTimeout(() => {
+      setIsSearching(true);
       setDebouncedSearchValue(value);
       setPage(0);
       setTimeout(() => setIsSearching(false), 300);
@@ -132,7 +132,6 @@ const Notifications = () => {
       const snap = await getDocs(collection(db, "notifications"));
       const data = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
       setAllNotifications(data);
-      // setNotifications(data);
     } catch (err) {
       console.error(err);
       showSnackbar("Failed to load notifications", "error");
@@ -290,7 +289,8 @@ const Notifications = () => {
     }
   };
 
-  async function handleAdd() {
+  async function handleAdd(event: React.ChangeEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!validateAllFields(false)) {
       showSnackbar("Please fix all validation errors", "error");
       return;
@@ -329,7 +329,8 @@ const Notifications = () => {
     }
   }
 
-  async function handleEdit() {
+  async function handleEdit(event: React.ChangeEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!selectedNotification) return;
     if (!validateAllFields(true)) {
       showSnackbar("Please fix all validation errors", "error");
@@ -346,7 +347,9 @@ const Notifications = () => {
         notification_image_url = await uploadImageToCloudinary(imageFile);
       }
 
-      const { date, time } = getCurrentDateTime();
+      // Keep the original date and time, don't update them
+      const originalDate = selectedNotification.date || "";
+      const originalTime = selectedNotification.time || "";
 
       await updateDoc(doc(db, "notifications", selectedNotification.id), {
         member_id: notificationTypeValue === "news" ? "all_users" : userIdValue,
@@ -354,8 +357,8 @@ const Notifications = () => {
         notification_image_url,
         title: titleValue,
         description: descriptionValue,
-        date: date,
-        time: time,
+        date: originalDate,
+        time: originalTime,
         updated_at: Timestamp.now(),
       });
       resetForm();
@@ -463,10 +466,10 @@ const Notifications = () => {
             <div className="fullname_img_of_admin_and_admin_title sm:hidden md:flex items-center gap-3">
               <div className="fullname_of_user_and_admin_title">
                 <h1 className="text-[22px] font-500">
-                  {adminProfile?.fullName || "Admin"}
+                  {adminProfile?.fullName || "Unknown"}
                 </h1>
                 <h1 className="text-[#808080] text-[15px] font-400 text-right">
-                  Admin
+                  {adminProfile.is_main_admin === true ? "Main Admin" : "Admin"}
                 </h1>
               </div>
               <img
@@ -481,15 +484,6 @@ const Notifications = () => {
             <div className="title_and_btn_add_notifications_block flex justify-between items-center gap-2">
               <h1 className="title_notitfications text-[24px] font-medium">
                 Notifications
-                {isSearching && " (Searching...)"}
-                {!isSearching &&
-                  debouncedSearchValue &&
-                  filteredNotifications.length > 0 &&
-                  ` (${filteredNotifications.length} result${filteredNotifications.length !== 1 ? "s" : ""})`}
-                {!isSearching &&
-                  debouncedSearchValue &&
-                  filteredNotifications.length === 0 &&
-                  ` (No results for "${debouncedSearchValue}")`}
               </h1>
               <div className="btn_add_block flex justify-between items-center gap-6">
                 <button
@@ -589,7 +583,10 @@ const Notifications = () => {
                   </button>
                 </div>
                 <div className="section_modal_add_notification">
-                  <div className="form flex flex-col gap-3">
+                  <form
+                    onSubmit={handleAdd}
+                    className="form flex flex-col gap-3"
+                  >
                     <div className="label_select_notification_type flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Notification Type *
@@ -717,7 +714,7 @@ const Notifications = () => {
                     </div>
                     <div className="btn_submit_block mt-2">
                       <button
-                        onClick={handleAdd}
+                        type="submit"
                         disabled={submitting}
                         className={`bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full transition-colors ${
                           submitting
@@ -735,7 +732,7 @@ const Notifications = () => {
                         )}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
               </div>
             </Dialog>
@@ -760,7 +757,10 @@ const Notifications = () => {
                   </button>
                 </div>
                 <div className="section_modal_edit_notification">
-                  <div className="form flex flex-col gap-3">
+                  <form
+                    className="form flex flex-col gap-3"
+                    onSubmit={handleEdit}
+                  >
                     <div className="label_select_notification_type flex flex-col gap-2">
                       <label className="cursor-pointer text-[15px] font-500">
                         Notification Type *
@@ -888,7 +888,7 @@ const Notifications = () => {
                     </div>
                     <div className="btn_submit_block mt-2">
                       <button
-                        onClick={handleEdit}
+                        type="submit"
                         disabled={submitting}
                         className={`bg-[#20ACFF] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full transition-colors ${
                           submitting
@@ -906,7 +906,7 @@ const Notifications = () => {
                         )}
                       </button>
                     </div>
-                  </div>
+                  </form>
                 </div>
               </div>
             </Dialog>
