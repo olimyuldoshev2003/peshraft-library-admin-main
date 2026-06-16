@@ -20,9 +20,19 @@ import ProtectedRoute from "./utils/ProtectedRoute";
 import EditAdmin from "./pages/editAdmin/EditAdmin";
 import DeleteAdmins from "./pages/deleteAdmins/DeleteAdmins";
 import { useAuth } from "./context/AuthContext";
+import { CircularProgress } from "@mui/material";
 
 function App() {
-  const { adminProfile } = useAuth();
+  const { adminProfile, loading } = useAuth();
+
+  // Show loading while auth is initializing
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <CircularProgress />
+      </div>
+    );
+  }
 
   // Build routes array with conditional route
   const routes = [
@@ -107,7 +117,6 @@ function App() {
             </ProtectedRoute>
           ),
         },
-
         // pages for functionalities
         {
           path: "add-book",
@@ -157,6 +166,19 @@ function App() {
             </ProtectedRoute>
           ),
         },
+        // Add delete-admins route conditionally for main admin only
+        ...(adminProfile && adminProfile.is_main_admin
+          ? [
+              {
+                path: "delete-admins",
+                element: (
+                  <ProtectedRoute>
+                    <DeleteAdmins />
+                  </ProtectedRoute>
+                ),
+              },
+            ]
+          : []),
       ],
     },
     {
@@ -164,21 +186,6 @@ function App() {
       element: <NotFound />,
     },
   ];
-
-  // Add delete-admins route conditionally if adminProfile exists and is_main_admin is true
-  if (adminProfile && adminProfile.is_main_admin) {
-    const dashboardRoute = routes.find((route) => route.path === "/dashboard");
-    if (dashboardRoute && dashboardRoute.children) {
-      dashboardRoute.children.push({
-        path: "delete-admins",
-        element: (
-          <ProtectedRoute>
-            <DeleteAdmins />
-          </ProtectedRoute>
-        ),
-      });
-    }
-  }
 
   const router = createBrowserRouter(routes);
 

@@ -48,7 +48,6 @@ const Notifications = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
-  
 
   // Debounce timeout ref
   const debounceTimeoutRef = useRef<any>(null);
