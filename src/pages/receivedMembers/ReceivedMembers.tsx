@@ -180,7 +180,7 @@ const ReceivedMembers = () => {
   async function loadData() {
     setLoading(true);
     try {
-      const data = await getReceivedMembers();
+      const data = await getReceivedMembers();      
       setRows(data);
     } catch (err) {
       console.error(err);

@@ -242,6 +242,8 @@ const ReturnBookRequests = () => {
     setLoading(true);
     try {
       const data = await getReturnBookRequests(); // 🔥 Firebase
+      console.log(data);
+      
       setRows(data);
     } catch (e) {
       console.error(e);

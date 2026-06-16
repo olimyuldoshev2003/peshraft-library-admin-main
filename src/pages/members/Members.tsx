@@ -174,49 +174,6 @@ const Members = () => {
     }, 500);
   }, []);
 
-  // Clear timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
-
-  async function loadMembers() {
-    setLoading(true);
-    try {
-      const data = await getMembers();
-      setMembers(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function openMemberModal(member: any) {
-    setSelectedMember(member);
-    setModalInfoAboutMember(true);
-    setLoadingModal(true);
-    try {
-      const [shelf, hist] = await Promise.all([
-        getMemberBookshelf(member.id),
-        getMemberHistory(member.id),
-      ]);
-      setBookshelf(shelf);
-      setHistory(hist);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingModal(false);
-    }
-  }
-
   // Filter members based on debounced search
   const filteredMembers = useMemo(() => {
     if (!debouncedSearchValue.trim()) {
@@ -274,6 +231,50 @@ const Members = () => {
     },
     { id: "action", numeric: false, disablePadding: false, label: "Action" },
   ];
+
+  async function loadMembers() {
+    setLoading(true);
+    try {
+      const data = await getMembers();
+      setMembers(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openMemberModal(member: any) {
+    setSelectedMember(member);
+    setModalInfoAboutMember(true);
+    setLoadingModal(true);
+    try {
+      const [shelf, hist] = await Promise.all([
+        
+        getMemberBookshelf(member.id),
+        getMemberHistory(member.id),
+      ]);
+      setBookshelf(shelf);
+      setHistory(hist);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingModal(false);
+    }
+  }
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    loadMembers();
+  }, []);
 
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
     const createSortHandler =
@@ -401,7 +402,9 @@ const Members = () => {
                   {adminProfile?.fullName || "Unknown"}
                 </h1>
                 <h1 className="text-[#808080] text-[15px] font-400 text-right">
-                  {adminProfile?.is_main_admin === true ? "Main Admin" : "Admin"}
+                  {adminProfile?.is_main_admin === true
+                    ? "Main Admin"
+                    : "Admin"}
                 </h1>
               </div>
               <img
@@ -682,6 +685,6 @@ const Members = () => {
       </div>
     </>
   );
-};
+};;
 
 export default Members;

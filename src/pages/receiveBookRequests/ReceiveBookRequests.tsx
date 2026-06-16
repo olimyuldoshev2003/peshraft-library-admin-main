@@ -250,7 +250,7 @@ const ReceiveBookRequests = () => {
   async function loadRequests() {
     setLoading(true);
     try {
-      const data = await getReceiveBookRequests(); // 🔥 Firebase
+      const data = await getReceiveBookRequests(); // 🔥 Firebase     
       setRows(data);
     } catch (e) {
       console.error(e);
