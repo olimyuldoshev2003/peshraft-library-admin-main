@@ -469,7 +469,7 @@ const Notifications = () => {
                   {adminProfile?.fullName || "Unknown"}
                 </h1>
                 <h1 className="text-[#808080] text-[15px] font-400 text-right">
-                  {adminProfile.is_main_admin === true ? "Main Admin" : "Admin"}
+                  {adminProfile?.is_main_admin ? "Main Admin" : "Admin"}
                 </h1>
               </div>
               <img

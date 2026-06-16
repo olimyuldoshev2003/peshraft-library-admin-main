@@ -19,9 +19,13 @@ import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import ProtectedRoute from "./utils/ProtectedRoute";
 import EditAdmin from "./pages/editAdmin/EditAdmin";
 import DeleteAdmins from "./pages/deleteAdmins/DeleteAdmins";
+import { useAuth } from "./context/AuthContext";
 
 function App() {
-  const router = createBrowserRouter([
+  const { adminProfile } = useAuth();
+
+  // Build routes array with conditional route
+  const routes = [
     {
       path: "/",
       element: (
@@ -153,21 +157,30 @@ function App() {
             </ProtectedRoute>
           ),
         },
-        {
-          path: "delete-admins",
-          element: (
-            <ProtectedRoute>
-              <DeleteAdmins />
-            </ProtectedRoute>
-          ),
-        },
       ],
     },
     {
       path: "*",
       element: <NotFound />,
     },
-  ]);
+  ];
+
+  // Add delete-admins route conditionally if adminProfile exists and is_main_admin is true
+  if (adminProfile && adminProfile.is_main_admin) {
+    const dashboardRoute = routes.find((route) => route.path === "/dashboard");
+    if (dashboardRoute && dashboardRoute.children) {
+      dashboardRoute.children.push({
+        path: "delete-admins",
+        element: (
+          <ProtectedRoute>
+            <DeleteAdmins />
+          </ProtectedRoute>
+        ),
+      });
+    }
+  }
+
+  const router = createBrowserRouter(routes);
 
   return (
     <>

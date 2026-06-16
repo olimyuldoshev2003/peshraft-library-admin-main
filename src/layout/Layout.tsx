@@ -17,9 +17,11 @@ import SecurityUpdateGoodOutlinedIcon from "@mui/icons-material/SecurityUpdateGo
 import { IoMenu } from "react-icons/io5";
 
 import CallReceivedIcon from "@mui/icons-material/CallReceived";
+import { useAuth } from "../context/AuthContext";
 
 const Layout = () => {
   const location = useLocation();
+  const { adminProfile } = useAuth();
   const [menuMobileSize, setMenuMobileSize] = useState<boolean>(false);
 
   function removeScrollbar() {
@@ -89,14 +91,18 @@ const Layout = () => {
       label: "Profile",
       exact: false,
     },
-    {
+  ];
+
+  // Add delete-admins route conditionally if adminProfile exists and is_main_admin is true
+  if (adminProfile && adminProfile.is_main_admin) {
+    navigationItems.push({
       id: 9,
       path: "/dashboard/delete-admins",
       icon: MdDeleteForever,
       label: "Delete Admins",
       exact: false,
-    },
-  ];
+    });
+  }
 
   const isActivePath = (path: string, exact: boolean = false) => {
     if (exact) return location.pathname === path;
