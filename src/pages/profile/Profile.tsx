@@ -30,7 +30,11 @@ import {
   reauthenticateWithCredential,
 } from "firebase/auth";
 import { auth } from "../../firebase/config";
-import { getPendingAdmins, approveAdmin } from "../../firebase/services";
+import {
+  getPendingAdmins,
+  approveAdmin,
+  firebaseSignOut,
+} from "../../firebase/services";
 import { useNavigate } from "react-router-dom";
 
 type Order = "asc" | "desc";
@@ -67,6 +71,8 @@ const Profile = () => {
     setAdminsLoading(true);
     try {
       const data = await getPendingAdmins();
+      console.log(data);
+
       setPendingAdmins(data);
     } catch (err) {
       console.error(err);
@@ -211,6 +217,20 @@ const Profile = () => {
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
     [pendingAdmins, order, orderBy, page, rowsPerPage],
   );
+
+  function handleLogout() {
+    logoutFromAccount();
+  }
+
+  async function logoutFromAccount() {
+    try {
+      await firebaseSignOut();
+      setModalLogout(false);
+      navigate("/");
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   function EnhancedTableHead({ order, orderBy, onRequestSort }: any) {
     const createSortHandler =
@@ -454,11 +474,9 @@ const Profile = () => {
             onClose={() => setModalLogout(false)}
             fullWidth
           >
-            <div className="modal_delete_book_block px-4 py-4">
-              <div className="header_delete_book_block flex items-center gap-6 justify-between">
-                <h1 className="text-[17px] font-600">
-                  Request of becoming admin
-                </h1>
+            <div className="modal_logput px-4 py-4">
+              <div className="header_logput_block flex items-center gap-6 justify-between">
+                <h1 className="text-[17px] font-600">Logout</h1>
                 <button
                   className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full"
                   onClick={() => setModalLogout(false)}
@@ -478,7 +496,7 @@ const Profile = () => {
                 </button>
                 <button
                   className="bg-[red] p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300"
-                  // onClick={}
+                  onClick={handleLogout}
                 >
                   Yes
                 </button>
