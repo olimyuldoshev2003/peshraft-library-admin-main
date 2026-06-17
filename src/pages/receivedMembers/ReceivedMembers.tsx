@@ -181,6 +181,7 @@ const ReceivedMembers = () => {
     setLoading(true);
     try {
       const data = await getReceivedMembers();
+      console.log(data);
 
       setRows(data);
     } catch (err) {
@@ -234,6 +235,12 @@ const ReceivedMembers = () => {
 
   const headCells: any = [
     { id: "img", numeric: false, disablePadding: true, label: "Image" },
+    {
+      id: "book_cover",
+      numeric: false,
+      disablePadding: true,
+      label: "Book Cover",
+    },
     {
       id: "borrowerName",
       numeric: false,
@@ -435,12 +442,24 @@ const ReceivedMembers = () => {
                               <TableCell>
                                 <img
                                   src={row.member_image_url || noImg}
-                                  className="min-w-10 h-10 rounded-full object-cover"
+                                  className="w-10 max-w-10 h-10 rounded-full object-cover"
                                   alt=""
                                   onError={(e: any) => {
                                     e.target.src = noImg;
                                   }}
                                 />
+                              </TableCell>
+                              <TableCell>
+                                <div className="bg-[#F5EABD] p-1 rounded inline-block">
+                                  <img
+                                    src={row.book_image_url || noImg}
+                                    className="w-8 h-11 object-cover"
+                                    alt=""
+                                    onError={(e: any) => {
+                                      e.target.src = noImg;
+                                    }}
+                                  />
+                                </div>
                               </TableCell>
                               <TableCell>{row.borrowerName || "-"}</TableCell>
                               <TableCell>

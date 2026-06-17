@@ -118,6 +118,14 @@ export const firebaseSignUp = async (
     email,
     password,
   );
+
+  // ✅ Check limit AFTER auth (user is now authenticated so Firestore allows the read)
+  const adminsSnap = await getDocs(collection(db, "admins"));
+  if (adminsSnap.size >= 5) {
+    // Delete the just-created auth account since we can't allow more admins
+    await userCredential.user.delete();
+    throw new Error("Maximum number of admins (5) has been reached.");
+  }
   const user = userCredential.user;
   await updateProfile(user, { displayName: fullName });
   await setDoc(doc(db, "admins", user.uid), {
@@ -126,7 +134,7 @@ export const firebaseSignUp = async (
     email,
     phoneNumber,
     dateOfBirth,
-    role: "pending",
+    role: "admin",
     createdAt: Timestamp.now(),
   });
   return user;
@@ -143,10 +151,7 @@ export const firebaseSignOut = async () => {
 export const getBooks = async (searchTerm = "") => {
   const booksRef = collection(db, "books");
   const snapshot = await getDocs(booksRef);
-  const books = snapshot.docs.map((doc: any) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+  const books = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   if (searchTerm) {
     const lower = searchTerm.toLowerCase();
     return books.filter(
@@ -207,7 +212,7 @@ export const deleteBook = async (bookId: string) => {
 
 export const getCategories = async () => {
   const snapshot = await getDocs(collection(db, "categories"));
-  return snapshot.docs.map((doc: any) => ({
+  return snapshot.docs.map((doc) => ({
     id: doc.id,
     filterName: doc.data().name,
     ...doc.data(),
@@ -253,13 +258,31 @@ export const deleteMember = async (memberId: string) => {
 
 export const getMembers = async () => {
   const snapshot = await getDocs(collection(db, "users"));
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const getMemberById = async (memberId: string) => {
   const docSnap = await getDoc(doc(db, "users", memberId));
   if (docSnap.exists()) return { id: docSnap.id, ...docSnap.data() };
   return null;
+};
+
+// Helper: enrich borrow docs with book image_url from books collection
+const enrichBorrowsWithImages = async (borrows: any[]) => {
+  return Promise.all(
+    borrows.map(async (borrow) => {
+      if (borrow.bookId) {
+        const bookSnap = await getDoc(doc(db, "books", borrow.bookId));
+        const bookData = bookSnap.exists() ? bookSnap.data() : null;
+        return {
+          ...borrow,
+          image_url: bookData?.image_url || null,
+          author: borrow.author || bookData?.author || "", // ✅ fallback to books collection
+        };
+      }
+      return borrow;
+    }),
+  );
 };
 
 export const getMemberBookshelf = async (memberId: string) => {
@@ -269,7 +292,8 @@ export const getMemberBookshelf = async (memberId: string) => {
     where("status", "==", "active"),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  const borrows = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return enrichBorrowsWithImages(borrows); // ✅ add image_url from books collection
 };
 
 export const getMemberHistory = async (memberId: string) => {
@@ -279,7 +303,8 @@ export const getMemberHistory = async (memberId: string) => {
     where("status", "==", "returned"),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  const borrows = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  return enrichBorrowsWithImages(borrows); // ✅ add image_url from books collection
 };
 
 // ============================================================
@@ -293,7 +318,7 @@ export const getReceiveBookRequests = async () => {
     where("status", "==", "pending"),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const acceptReceiveBookRequest = async (requestId: string) => {
@@ -305,6 +330,7 @@ export const acceptReceiveBookRequest = async (requestId: string) => {
     userId: reqData.userId,
     bookId: reqData.bookId,
     bookTitle: reqData.bookTitle,
+    author: reqData.author || "", // ✅ save author so bookshelf/history can show it
     borrowerName: reqData.userName,
     phoneNumber: reqData.phoneNumber,
     email: reqData.email,
@@ -315,8 +341,10 @@ export const acceptReceiveBookRequest = async (requestId: string) => {
   const bookDoc = await getDoc(doc(db, "books", reqData.bookId));
   if (bookDoc.exists()) {
     const copies = bookDoc.data().available_copies || 1;
+    const currentReaders = bookDoc.data().readers || 0;
     await updateDoc(doc(db, "books", reqData.bookId), {
       available_copies: Math.max(0, copies - 1),
+      readers: currentReaders + 1, // ✅ increment readers count on each accepted borrow
     });
   }
 };
@@ -332,7 +360,7 @@ export const getReturnBookRequests = async () => {
     where("status", "==", "pending"),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const acceptReturnBookRequest = async (requestId: string) => {
@@ -360,13 +388,43 @@ export const acceptReturnBookRequest = async (requestId: string) => {
 // ============================================================
 
 export const getReceivedMembers = async () => {
+  // Get all active borrows (books not yet returned)
   const q = query(collection(db, "borrows"), where("status", "==", "active"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  const borrows = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  // Enrich each borrow with:
+  // 1. member_image_url from users collection (borrow doc doesn't store it)
+  // 2. book image_url from books collection
+  const enriched = await Promise.all(
+    borrows.map(async (borrow: any) => {
+      const [userSnap, bookSnap] = await Promise.all([
+        borrow.userId
+          ? getDoc(doc(db, "users", borrow.userId)).catch(() => null)
+          : null,
+        borrow.bookId
+          ? getDoc(doc(db, "books", borrow.bookId)).catch(() => null)
+          : null,
+      ]);
+      const member_image_url = userSnap?.exists()
+        ? userSnap.data().member_image_url || ""
+        : "";
+      const book_image_url = bookSnap?.exists()
+        ? bookSnap.data().image_url || ""
+        : "";
+      return { ...borrow, member_image_url, book_image_url };
+    }),
+  );
+  return enriched;
 };
 
 export const deleteReceivedMember = async (borrowId: string) => {
-  await deleteDoc(doc(db, "borrows", borrowId));
+  // Mark as "returned" instead of hard-delete
+  // so it still appears in the user's History Book
+  await updateDoc(doc(db, "borrows", borrowId), {
+    status: "returned",
+    returnedAt: Timestamp.now(),
+  });
 };
 
 // ============================================================
@@ -404,7 +462,7 @@ export const getOverdueBorrowers = async () => {
     where("dueDate", "<", Timestamp.now()),
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => {
+  return snapshot.docs.map((doc) => {
     const data = doc.data();
     const dueDate = data.dueDate?.toDate?.() || new Date(data.dueDate);
     const now = new Date();
@@ -421,7 +479,7 @@ export const getOverdueBorrowers = async () => {
 export const getPendingAdmins = async () => {
   const q = query(collection(db, "admins"), where("role", "==", "pending"));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 export const approveAdmin = async (adminId: string) => {

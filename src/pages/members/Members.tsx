@@ -27,7 +27,10 @@ import {
   getMembers,
   getMemberBookshelf,
   getMemberHistory,
+  deleteMember,
 } from "../../firebase/services";
+import { MdDelete, MdOutlineClose } from "react-icons/md";
+import { DialogTitle } from "@mui/material";
 
 type Order = "asc" | "desc";
 
@@ -149,6 +152,11 @@ const Members = () => {
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [loadingModal, setLoadingModal] = useState(false);
 
+  const [idDeleteMember, setIdDeleteMember] = useState<string>("");
+  const [modalDeleteMember, setModalDeleteMember] = useState(false);
+
+  const [deleting, setDeleting] = useState(false);
+
   const [bookshelf, setBookshelf] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
 
@@ -236,6 +244,8 @@ const Members = () => {
     setLoading(true);
     try {
       const data = await getMembers();
+      console.log(data);
+      
       setMembers(data);
     } catch (err) {
       console.error(err);
@@ -262,6 +272,20 @@ const Members = () => {
       console.error(err);
     } finally {
       setLoadingModal(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!idDeleteMember) return;
+    setDeleting(true);
+    try {
+      await deleteMember(idDeleteMember);
+      setModalDeleteMember(false);
+      loadMembers();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -473,11 +497,21 @@ const Members = () => {
                             </TableCell>
                             <TableCell>{row.email || "-"}</TableCell>
                             <TableCell>
-                              <BsThreeDots
-                                size={27}
-                                className="cursor-pointer text-blue-600 hover:text-blue-800 duration-100"
-                                onClick={() => openMemberModal(row)}
-                              />
+                              <div className="btn_func_block flex items-center gap-1.5">
+                                <BsThreeDots
+                                  size={27}
+                                  className="cursor-pointer text-blue-600 hover:text-blue-800 duration-100"
+                                  onClick={() => openMemberModal(row)}
+                                />
+                                <MdDelete
+                                  size={27}
+                                  onClick={() => {
+                                    setIdDeleteMember(row.id);
+                                    setModalDeleteMember(true);
+                                  }}
+                                  className="cursor-pointer text-red-500 hover:text-red-600 duration-100"
+                                />
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -523,21 +557,17 @@ const Members = () => {
               fullWidth
             >
               <div className="modal_info_about_member_block sm:p-4 md:p-2.5 flex items-center gap-5 min-w-0 flex-wrap">
-                <div className="info_about_member shrink-0 flex flex-col sm:justify-center md:justify-start sm:w-full md:w-[45%]">
+                <div className="info_about_member shrink-0 flex flex-col sm:justify-center md:justify-start sm:w-full md:w-[45%] gap-3">
                   <div className="btn_close_block">
                     <IoArrowBackCircleOutline
-                      size={25}
+                      size={31}
                       className="cursor-pointer"
                       onClick={() => setModalInfoAboutMember(false)}
                     />
                   </div>
-                  <div className="info_about_member flex flex-col sm:justify-center md:justify-start sm:items-center md:items-start">
+                  <div className="info_about_member flex flex-col sm:justify-center md:justify-start sm:items-center md:items-start gap-3">
                     <img
-                      src={
-                        selectedMember?.member_image_url ||
-                        selectedMember?.photoURL ||
-                        noImg
-                      }
+                      src={selectedMember?.member_image_url || noImg}
                       className="w-58.5 h-68.5 rounded-xl object-cover"
                       alt=""
                       onError={(e: any) => {
@@ -605,9 +635,7 @@ const Members = () => {
                             <div className="img_book_name_and_author_name_block flex items-center gap-3 flex-1 min-w-0">
                               <div className="block_img bg-[#F5EABD] p-2 rounded-[5px] shrink-0">
                                 <img
-                                  src={
-                                    book.image_url || book.coverImage || noImg
-                                  }
+                                  src={book?.image_url || noImg}
                                   alt=""
                                   className="w-10.75 h-15 object-cover"
                                   onError={(e: any) => {
@@ -658,7 +686,7 @@ const Members = () => {
                           >
                             <div className="block_img bg-[#F5EABD] p-2 rounded-[5px] shrink-0">
                               <img
-                                src={book.image_url || book.coverImage || noImg}
+                                src={book?.image_url || noImg}
                                 alt=""
                                 className="w-10.75 h-15 object-cover"
                                 onError={(e: any) => {
@@ -679,6 +707,54 @@ const Members = () => {
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            </Dialog>
+
+            {/* Modal Delete Member */}
+            <Dialog
+              open={modalDeleteMember}
+              onClose={() => !deleting && setModalDeleteMember(false)}
+              fullWidth
+            >
+              <div className="modal_delete_member_block px-4 py-4">
+                <div className="header_delete_member_block flex items-center gap-6 justify-between">
+                  <h1 className="text-[26px] font-600">Delete Member</h1>
+                  <button
+                    className="close_modal_btn outline-none cursor-pointer p-2 bg-[#D9D9D9] rounded-full hover:bg-gray-400 transition-colors"
+                    onClick={() => !deleting && setModalDeleteMember(false)}
+                    disabled={deleting}
+                  >
+                    <MdOutlineClose size={27} />
+                  </button>
+                </div>
+                <DialogTitle>
+                  {
+                    "Are you sure to delete this member? The all informations of this user will be deleted"
+                  }
+                </DialogTitle>
+                <div className="block_btns flex gap-5 justify-between sm:flex-col-reverse md:flex-row">
+                  <button
+                    className="bg-gray-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-gray-600 transition-colors"
+                    onClick={() => !deleting && setModalDeleteMember(false)}
+                    disabled={deleting}
+                  >
+                    No
+                  </button>
+                  <button
+                    className="bg-red-500 p-2.5 rounded-[10px] text-white text-[18px] font-500 cursor-pointer w-full duration-300 hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting ? (
+                      <>
+                        <CircularProgress size={20} color="inherit" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      "Yes"
+                    )}
+                  </button>
                 </div>
               </div>
             </Dialog>
