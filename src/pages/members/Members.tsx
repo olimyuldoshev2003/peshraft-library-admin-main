@@ -250,10 +250,12 @@ const Members = () => {
     setLoadingModal(true);
     try {
       const [shelf, hist] = await Promise.all([
-        
         getMemberBookshelf(member.id),
         getMemberHistory(member.id),
       ]);
+      console.log(shelf);
+      console.log(hist);
+
       setBookshelf(shelf);
       setHistory(hist);
     } catch (err) {
@@ -685,6 +687,6 @@ const Members = () => {
       </div>
     </>
   );
-};;
+};
 
 export default Members;
